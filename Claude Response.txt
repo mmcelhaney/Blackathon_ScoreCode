@@ -1,0 +1,17 @@
+Now let me build this fully. Given the Blackathon's bold Pan-African aesthetic (gold, black, red, green from the flyer), I'll match that energy.Here's your **Blackathon Score Card** — fully self-contained, single HTML file. Here's what's wired up:
+
+**Sidebar**
+- Load Teams / Load Judges buttons with file pickers (CSV, ignores extra columns, clears before reloading)
+- Suggest Winner button → shows 1st/2nd/3rd place podium dialog with tied teams grouped ("Team A, Team B (tied at 23.0)")
+- Export DB button (appears only after first score is committed) → downloads `blackathon.db` (real SQLite binary via sql.js)
+- Live stats: scores recorded, teams judged, active judges, mini leaderboard (top 3)
+
+**Main Form**
+- Team dropdown (with idea description shown below it on selection)
+- Judge dropdown
+- 6×6 rubric table with radio-style checkboxes per row — clicking one auto-deselects others in the same category; each row shows a live score pill
+- Reset clears all checkboxes and dropdowns; Commit validates all rows are scored, checks for duplicates, inserts to DB
+
+**CSV format expected:**
+- Teams: columns `Team Name`, `Idea Description` (any extra columns ignored)
+- Judges: column `Judge Name` (any extra columns ignored)
