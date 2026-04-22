@@ -65,8 +65,12 @@ export default async function Home({
           </div>
         )}
         <div className="flex flex-col items-center py-10 text-center md:py-20">
-          <div className="pill-gold mb-6 animate-fade-up">
+          <div className="mb-6 animate-fade-up">
             BlackWPT Hackathon · April 24, 2026
+          </div>
+          <div className="relative mb-6 flex h-24 w-24 items-center justify-center animate-fade-up">
+            <div className="absolute inset-0 animate-pulse rounded-full border border-gold/30" />
+            <div className="absolute -inset-3 rounded-full border border-gold/10" />
           </div>
           <Image
             src="/blackathon_text_final.png"
