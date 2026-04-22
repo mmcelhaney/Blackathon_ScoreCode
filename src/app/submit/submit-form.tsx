@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useState, useTransition } from "react";
 import { submitProject, type SubmitResult } from "./actions";
 
 const TRACKS = ["AI for Coding", "Technology Solutions"];
@@ -26,18 +26,15 @@ const ROLES = [
 const OTHER = "Other";
 
 export function SubmitForm() {
-  const [state, action, pending] = useActionState<SubmitResult | null, FormData>(
-    submitProject,
-    null,
-  );
+  const [state, setState] = useState<SubmitResult | null>(null);
+  const [pending, startTransition] = useTransition();
+
   const [mode, setMode] = useState<"Solo" | "Team">("Solo");
   const [orgChoice, setOrgChoice] = useState<string>("");
   const [roleChoice, setRoleChoice] = useState<string>("");
 
-  // Confirm modal state
-  const formRef = useRef<HTMLFormElement>(null);
-  const confirmedRef = useRef(false);
-  const [preview, setPreview] = useState<Record<string, string> | null>(null);
+  // Captured FormData → modal preview (null means no modal)
+  const [pending_fd, setPendingFd] = useState<FormData | null>(null);
 
   if (state?.ok) {
     return (
@@ -62,39 +59,42 @@ export function SubmitForm() {
     fe[k]?.[0] ? <p className="mt-1 text-xs text-blood">{fe[k]![0]}</p> : null;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    if (confirmedRef.current) {
-      // User already confirmed — let the action fire.
-      confirmedRef.current = false;
-      return;
-    }
     e.preventDefault();
+    // Browser already validated required fields before we got here.
     const fd = new FormData(e.currentTarget);
-    const obj: Record<string, string> = {};
-    fd.forEach((v, k) => {
-      obj[k] = String(v);
-    });
-    setPreview(obj);
+    setPendingFd(fd);
   }
 
   function cancelConfirm() {
-    setPreview(null);
+    setPendingFd(null);
   }
 
   function confirmAndSend() {
-    confirmedRef.current = true;
-    setPreview(null);
-    // Fire the actual submit on next tick so the modal unmounts cleanly
-    setTimeout(() => formRef.current?.requestSubmit(), 0);
+    if (!pending_fd) return;
+    const fd = pending_fd;
+    startTransition(async () => {
+      const result = await submitProject(null, fd);
+      setState(result);
+      // Only close the modal if it succeeded — on error, keep it open
+      // briefly so the user sees what happened, then auto-close so the
+      // inline field errors can render.
+      setPendingFd(null);
+    });
   }
+
+  const preview: Record<string, string> | null = pending_fd
+    ? (() => {
+        const o: Record<string, string> = {};
+        pending_fd.forEach((v, k) => {
+          o[k] = String(v);
+        });
+        return o;
+      })()
+    : null;
 
   return (
     <>
-      <form
-        ref={formRef}
-        action={action}
-        onSubmit={handleSubmit}
-        className="space-y-6"
-      >
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Contestant */}
         <fieldset className="card space-y-4">
           <legend className="pill-gold -mt-2 mb-2">1. About You</legend>
@@ -297,11 +297,14 @@ export function SubmitForm() {
           </div>
 
           <div>
-            <label className="field-label">Project Description *</label>
+            <label className="field-label">
+              Project Description * <span className="text-dust">(min 30 chars)</span>
+            </label>
             <textarea
               name="project_description"
               required
               rows={5}
+              minLength={30}
               className="field-input mt-1"
             />
             {err("project_description")}
