@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html, body {
+    background: #0D0D0D;
+    color: #F0E6CC;
+  }
+  body {
+    background-image:
+      repeating-linear-gradient(45deg, rgba(245,197,24,.025) 0 1px, transparent 1px 16px),
+      repeating-linear-gradient(-45deg, rgba(192,57,43,.025) 0 1px, transparent 1px 16px);
+    min-height: 100vh;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-bebas), Impact, sans-serif;
+    letter-spacing: 0.08em;
+  }
+  /* Focus ring in gold so it's visible on dark bg */
+  :focus-visible {
+    outline: 2px solid #F5C518;
+    outline-offset: 2px;
+  }
+  /* Custom scrollbars — webkit */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: #141414; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #F5C518; }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-ink-3 p-5 shadow-card;
+  }
+  .field-label {
+    @apply block text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-dust;
+  }
+  .field-input {
+    @apply w-full rounded-md border border-line bg-ink-5 px-3 py-2.5 text-sm text-bone placeholder:text-dust/70 focus:border-gold focus:outline-none;
+  }
+  .btn {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-md border border-line bg-ink-4 px-5 font-cond text-sm font-semibold uppercase tracking-wider text-bone transition hover:border-gold hover:text-gold;
+  }
+  .btn-gold {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-md border-0 bg-gradient-to-br from-gold-dark to-gold px-6 font-cond text-sm font-bold uppercase tracking-wider text-ink transition hover:brightness-110;
+  }
+  .btn-danger {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-md border border-blood px-5 font-cond text-sm font-semibold uppercase tracking-wider text-blood transition hover:bg-blood hover:text-bone;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-ink-4 px-3 py-1 text-[0.7rem] uppercase tracking-wider text-dust;
+  }
+  .pill-gold {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-[0.7rem] uppercase tracking-wider text-gold;
+  }
+  .hex-title {
+    font-family: var(--font-bebas), Impact, sans-serif;
+    background: linear-gradient(135deg, #F5C518 0%, #fff 50%, #D4A017 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
