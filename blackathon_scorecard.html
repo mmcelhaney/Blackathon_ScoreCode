@@ -8,28 +8,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <style>
 /* ════════════════════════════════════════════
-   RESTORED ORIGINAL STYLING & COLORS
+   CORE THEME & RESPONSIVE VARIABLES
 ════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --gold: #F5C518;  --gold2: #D4A017;  --gold-glow: rgba(245,197,24,.18);
-  --red:  #C0392B;  --green: #27AE60;
-  --bg-body:    #0D0D0D;
-  --bg-shell:   #1A1A1A;
-  --bg-aside:   #141414;
-  --bg-form:    #222;
-  --bg-input:   #2A2A2A;
-  --bg-cell:    #1A1A1A;
-  --bg-cell-hd: #252525;
-  --bg-cell-fc: #202020;
-  --text:  #F0E6CC;  --muted: #7A7060;  --border: #333;
-  --radius: 10px;  --radius-sm: 6px;
-  --touch: 48px;
-  --shadow: 0 4px 24px rgba(0,0,0,.45);
-  --sidebar-w: 210px;
-  --max-w: 980px;
-  --pat-a: rgba(245,197,24,.025);
-  --pat-b: rgba(192,57,43,.025);
+  --gold: #F5C518; --gold2: #D4A017; --gold-glow: rgba(245,197,24,.18);
+  --red: #C0392B; --green: #27AE60;
+  --bg-body: #0D0D0D; --bg-shell: #1A1A1A; --bg-aside: #141414;
+  --bg-form: #222; --bg-input: #2A2A2A; --bg-cell: #1A1A1A;
+  --bg-cell-hd: #252525; --bg-cell-fc: #202020;
+  --text: #F0E6CC; --muted: #7A7060; --border: #333;
+  --radius: 10px; --radius-sm: 6px; --touch: 48px;
+  --shadow: 0 4px 24px rgba(0,0,0,.45); --sidebar-w: 220px; --max-w: 1000px;
+  --pat-a: rgba(245,197,24,.025); --pat-b: rgba(192,57,43,.025);
 }
 html.light {
   --bg-body: #F2EDE3; --bg-shell: #FFF; --bg-aside: #EDE7DA;
@@ -40,159 +31,174 @@ html.light {
 body {
   background: var(--bg-body);
   background-image: repeating-linear-gradient(45deg, var(--pat-a) 0 1px, transparent 1px 16px), repeating-linear-gradient(-45deg, var(--pat-b) 0 1px, transparent 1px 16px);
-  font-family: 'Barlow', sans-serif; color: var(--text); min-height: 100%; display: flex; flex-direction: column; align-items: center; padding-bottom: 80px;
+  font-family: 'Barlow', sans-serif; color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px; overflow-x: hidden;
 }
+
+/* ════════════════════════════════════════════
+   COMPONENTS
+════════════════════════════════════════════ */
 #loading { position: fixed; inset: 0; background: var(--bg-body); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
-#loading h2 { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:4px; color:var(--gold); }
-header { position: sticky; top: 0; z-index: 200; width: 100%; background: var(--bg-body); border-bottom: 1px solid var(--border); padding: 10px 18px 8px; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
-.hdr-brand h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(1.4rem,4.5vw,2rem); letter-spacing:4px; background:linear-gradient(135deg,var(--gold) 0%,#fff 50%,var(--gold2) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.page-wrap { width:100%; max-width:var(--max-w); padding:20px 18px 0; display:flex; gap:18px; align-items:flex-start; }
-aside { width:var(--sidebar-w); flex-shrink:0; background:var(--bg-aside); border:1px solid var(--border); border-radius:var(--radius); display:flex; flex-direction:column; padding:14px 12px; gap:8px; position:sticky; top:88px; }
+header { position: sticky; top: 0; z-index: 200; width: 100%; background: var(--bg-body); border-bottom: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.hdr-brand h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(1.4rem, 5vw, 2.2rem); letter-spacing:4px; background:linear-gradient(135deg,var(--gold) 0%,#fff 50%,var(--gold2) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+.page-wrap { width:100%; max-width:var(--max-w); padding:20px 18px; display:flex; gap:20px; align-items:flex-start; }
+
+aside { width:var(--sidebar-w); flex-shrink:0; background:var(--bg-aside); border:1px solid var(--border); border-radius:var(--radius); display:flex; flex-direction:column; padding:16px; gap:10px; position:sticky; top:90px; box-shadow: var(--shadow); }
 .sb-locked { display: none; opacity: 0; }
 .sb-locked.unlocked { display: flex; opacity: 1; }
-.sb-btn { width:100%; min-height:var(--touch); padding:9px 10px; background:var(--bg-form); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:'Barlow Condensed',sans-serif; font-size:.84rem; cursor:pointer; text-align:left; display:flex; align-items:center; gap:8px; }
-.sb-btn.accent { background:linear-gradient(135deg,var(--gold2),var(--gold)); color:#0A0A0A; font-weight:700; border-color:transparent; }
-.form-sec { background:var(--bg-form); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
-table.rub { width:100%; border-collapse:collapse; }
-table.rub th { font-family:'Barlow Condensed',sans-serif; font-size:.62rem; text-transform:uppercase; letter-spacing:1px; color:var(--gold); background:var(--bg-cell-hd); padding:9px 6px; border:1px solid var(--border); text-align:center; }
-table.rub td { border:1px solid var(--border); padding:5px; text-align:center; background:var(--bg-cell); }
-table.rub td:first-child { text-align:left; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--text); background:var(--bg-cell-fc); padding-left:12px; }
-.rub-cell { cursor:pointer; width:42px; height:42px; border:2px solid var(--border); border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--muted); transition: .12s; }
+
+.sb-btn { width:100%; min-height:var(--touch); padding:10px; background:var(--bg-form); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:.9rem; cursor:pointer; display:flex; align-items:center; gap:8px; transition: 0.2s; }
+.sb-btn:hover { border-color: var(--gold); color: var(--gold); }
+.sb-btn.accent { background:linear-gradient(135deg,var(--gold2),var(--gold)); color:#0A0A0A; font-weight:700; border:none; }
+
+main { flex:1; min-width:0; display:flex; flex-direction:column; gap:16px; }
+.form-sec { background:var(--bg-form); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); }
+
+/* Rubric Styling - Desktop */
+.rub-container { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); }
+table.rub { width:100%; border-collapse:collapse; min-width: 600px; }
+table.rub th { font-family:'Barlow Condensed',sans-serif; font-size:.65rem; text-transform:uppercase; letter-spacing:1px; color:var(--gold); background:var(--bg-cell-hd); padding:12px 8px; border:1px solid var(--border); text-align:center; }
+table.rub td { border:1px solid var(--border); padding:8px; text-align:center; background:var(--bg-cell); }
+table.rub td:first-child { text-align:left; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--text); background:var(--bg-cell-fc); padding-left:15px; }
+
+.rub-cell { cursor:pointer; width:44px; height:44px; border:2px solid var(--border); border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--muted); transition: 0.15s; user-select: none; }
+.rub-cell:hover { border-color: var(--gold); }
 .rub-cell.on { border-color:var(--gold); background:var(--gold-glow); color:var(--gold); }
-.toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(90px); background:var(--green); color:#0A0A0A; padding:12px 28px; border-radius:30px; font-family:'Barlow Condensed',sans-serif; font-weight:700; transition:transform .3s, opacity .3s; z-index:3000; opacity:0; }
-.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-#login-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 8000; align-items: center; justify-content: center; padding: 20px; }
-#login-overlay.open { display: flex; }
-.login-box { background: var(--bg-shell); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+.rub-cell.on::after { content:'✓'; font-size:1rem; margin-left: 2px; }
+
+#login-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 8000; align-items: center; justify-content: center; padding: 20px; }
+.login-box { background: var(--bg-shell); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 10px 50px rgba(0,0,0,0.8); }
+
+/* ════════════════════════════════════════════
+   MOBILE OPTIMIZATIONS
+════════════════════════════════════════════ */
+@media (max-width: 850px) {
+  .page-wrap { flex-direction: column; }
+  aside { width: 100%; position: static; order: 2; }
+  main { order: 1; }
+  header { padding: 10px; }
+  .hdr-brand h1 { font-size: 1.5rem; }
+  .form-sec { padding: 12px; }
+  table.rub th { font-size: 0.55rem; padding: 8px 4px; }
+  .rub-cell { width: 38px; height: 38px; }
+}
+
+@media (max-width: 480px) {
+  .login-box { padding: 20px; }
+  .sb-btn { font-size: 0.8rem; }
+}
 </style>
 </head>
 <body>
 
-<div id="loading"><div class="spinner"></div><h2>Blackathon</h2><p>Loading Persistence Layer…</p></div>
+<div id="loading"><h2>⬡ Blackathon</h2><p>Initializing Persistence Layer...</p></div>
 
 <div id="login-overlay">
   <div class="login-box">
-    <div style="font-family:'Bebas Neue'; font-size:1.6rem; color:var(--gold); text-align:center;">⬡ Blackathon Login</div>
-    <input type="text" id="login-user" placeholder="Username" style="padding:10px; background:var(--bg-input); border:1px solid var(--border); color:var(--text);"/>
-    <input type="password" id="login-pass" placeholder="Password" style="padding:10px; background:var(--bg-input); border:1px solid var(--border); color:var(--text);"/>
-    <div id="login-err" style="color:var(--red); font-size:.8rem; text-align:center;"></div>
-    <button class="sb-btn accent" onclick="doLogin()" style="justify-content:center;">🔓 Login</button>
+    <div style="font-family:'Bebas Neue'; font-size:1.8rem; color:var(--gold); text-align:center; letter-spacing: 2px;">Tournament Admin</div>
+    <input type="text" id="login-user" placeholder="Username" style="padding:12px; background:var(--bg-input); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); outline:none;"/>
+    <input type="password" id="login-pass" placeholder="Password" style="padding:12px; background:var(--bg-input); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); outline:none;"/>
+    <button class="sb-btn accent" onclick="doLogin()" style="justify-content:center; font-size: 1rem;">🔓 Unlock Score Card</button>
   </div>
 </div>
 
 <header>
-  <div class="hdr-left"><div class="user-badge" id="user-badge" style="display:none; color:var(--muted); font-size:.7rem; gap:8px; align-items:center;"><strong id="user-display"></strong><button onclick="localStorage.clear(); location.reload();" style="background:none; border:1px solid var(--border); color:var(--muted); padding:2px 8px; border-radius:10px; cursor:pointer;">Logout</button></div></div>
-  <div class="hdr-brand"><h1>⬡ Blackathon Score Card</h1><p style="font-family:'Barlow Condensed'; color:var(--muted); letter-spacing:3px; text-transform:uppercase; text-align:center;">BlackWPT Hackathon · April 24, 2026</p></div>
-  <button onclick="document.documentElement.classList.toggle('light')" style="background:none; border:none; cursor:pointer; font-size:1.2rem;">🌓</button>
+  <div id="user-badge" style="display:none; color:var(--muted); font-size:.75rem; align-items:center; gap:10px;"><strong id="user-display"></strong><button onclick="localStorage.clear(); location.reload();" style="cursor:pointer; border:1px solid var(--border); background:none; color:var(--muted); border-radius:20px; padding:4px 12px; text-transform:uppercase; font-weight:700;">Logout</button></div>
+  <div class="hdr-brand"><h1>⬡ Blackathon Score Card</h1></div>
+  <button onclick="document.documentElement.classList.toggle('light')" style="background:none; border:none; cursor:pointer; font-size:1.4rem; padding: 5px;">🌓</button>
 </header>
 
 <div class="page-wrap">
-  <aside id="aside">
-    <div class="sec-label">Access</div><button id="btn-login" onclick="openLogin()" class="sb-btn accent">🔐 Admin Login</button>
-    <div class="sec-label sb-locked">Tournament</div><button class="sb-btn sb-locked" id="btn-setup" onclick="doTournamentSetup()">⚙ Setup</button>
-    <div class="sec-label sb-locked">Import</div>
-    <button class="sb-btn sb-locked" onclick="document.getElementById('teamsFile').click()">📋 Load Teams</button>
-    <button class="sb-btn sb-locked" onclick="document.getElementById('judgesFile').click()">👤 Load Judges</button>
-    <input type="file" id="teamsFile" hidden onchange="loadTeams(this)" accept=".csv"/>
-    <input type="file" id="judgesFile" hidden onchange="loadJudges(this)" accept=".csv"/>
-    <div class="sec-label sb-locked">Persistence</div>
-    <button class="sb-btn sb-locked" style="border-color:var(--green); color:var(--green);" onclick="exportDB()">💾 Export .db</button>
-    <button class="sb-btn sb-locked" id="btn-email" onclick="emailJudgeCredentials()">📧 Email Pswd</button>
-    <button class="sb-btn sb-locked" style="border-color:var(--red); color:var(--red);" onclick="clearAllData()">🗑 Clear Data</button>
-    <div class="sec-label sb-locked">Live Stats</div><div id="s-scores" style="font-family:'Bebas Neue'; color:var(--gold); font-size:1.9rem;">0</div>
+  <aside>
+    <div style="font-size: .6rem; text-transform: uppercase; letter-spacing: 2px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 5px;">Access Control</div>
+    <button id="btn-login" onclick="openLogin()" class="sb-btn accent">🔐 Admin Login</button>
+    <div class="sec-label sb-locked" style="font-size: .6rem; text-transform: uppercase; letter-spacing: 2px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-top: 10px;">Management</div>
+    <button class="sb-btn sb-locked" id="btn-setup" onclick="doTournamentSetup()">⚙ Auto-Setup Brackets</button>
+    <button class="sb-btn sb-locked" onclick="document.getElementById('tFile').click()">📋 Load Project CSV</button>
+    <button class="sb-btn sb-locked" onclick="document.getElementById('jFile').click()">👤 Load Judge CSV</button>
+    <input type="file" id="tFile" hidden onchange="loadTeams(this)"/><input type="file" id="jFile" hidden onchange="loadJudges(this)"/>
+    <div class="sec-label sb-locked" style="font-size: .6rem; text-transform: uppercase; letter-spacing: 2px; color: var(--gold); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-top: 10px;">Database</div>
+    <button class="sb-btn sb-locked" style="color:var(--green); border-color:var(--green);" onclick="exportDB()">💾 Download .db File</button>
+    <button class="sb-btn sb-locked" id="btn-email" onclick="emailJudgeCredentials()">📧 Send Credentials</button>
+    <button class="sb-btn sb-locked" style="color:var(--red); border-color:var(--red);" onclick="clearAllData()">🗑 Wipe All Data</button>
   </aside>
 
   <main>
     <div class="form-sec">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-        <div><label style="font-size:.65rem; color:var(--muted); text-transform:uppercase;">Team</label><select id="sel-team" onchange="onTeamChange()"></select></div>
-        <div><label style="font-size:.65rem; color:var(--muted); text-transform:uppercase;">Judge</label><select id="sel-judge" onchange="onJudgeChange()"></select></div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+        <div><label style="font-size:.7rem; color:var(--muted); text-transform:uppercase; font-weight:700; display:block; margin-bottom:5px;">Select Team</label><select id="sel-team" onchange="onTeamChange()" style="width:100%; height: var(--touch); background:var(--bg-input); border:1px solid var(--border); color:var(--text); padding: 0 10px; border-radius: var(--radius-sm);"></select></div>
+        <div><label style="font-size:.7rem; color:var(--muted); text-transform:uppercase; font-weight:700; display:block; margin-bottom:5px;">Assigned Judge</label><select id="sel-judge" style="width:100%; height: var(--touch); background:var(--bg-input); border:1px solid var(--border); color:var(--text); padding: 0 10px; border-radius: var(--radius-sm);"></select></div>
       </div>
-      <div id="idea-txt" style="font-size:.72rem; color:var(--muted); margin-top:8px;"></div>
+      <div id="idea-txt" style="font-size:.8rem; color:var(--muted); margin-top:12px; font-weight:500;"></div>
     </div>
 
-    <div class="score-tally">
-      <span style="font-size:.65rem; color:var(--muted); text-transform:uppercase;">Score</span>
-      <div style="flex:1; height:8px; background:var(--bg-input); border-radius:4px; overflow:hidden;"><div id="progress-fill" style="height:100%; width:0%; background:linear-gradient(90deg,var(--red),var(--gold),var(--green)); transition:width .3s;"></div></div>
-      <span id="tally-val" style="font-family:'Bebas Neue'; font-size:1.6rem; color:var(--gold);">0 / 50</span>
+    <div class="score-tally" style="display:flex; align-items:center; gap:16px;">
+      <span style="font-size:.7rem; color:var(--muted); text-transform:uppercase; font-weight:700;">Progress</span>
+      <div style="flex:1; height:12px; background:var(--bg-input); border-radius:6px; overflow:hidden; border: 1px solid var(--border);"><div id="progress-fill" style="height:100%; width:0%; background:linear-gradient(90deg,var(--red),var(--gold),var(--green)); transition:width 0.4s cubic-bezier(0.4, 0, 0.2, 1);"></div></div>
+      <span id="tally-val" style="font-family:'Bebas Neue'; font-size:1.8rem; color:var(--gold); min-width: 80px; text-align: right;">0 / 50</span>
     </div>
 
-    <div class="form-sec">
-      <table class="rub">
-        <thead id="rub-head"></thead>
-        <tbody id="rub-body"></tbody>
-      </table>
+    <div class="form-sec" style="padding: 0;">
+      <div class="rub-container">
+        <table class="rub">
+          <thead id="rub-head"></thead>
+          <tbody id="rub-body"></tbody>
+        </table>
+      </div>
     </div>
 
-    <div style="display:flex; gap:10px; justify-content:flex-end;">
-      <button class="sb-btn" onclick="resetForm()" style="width:auto;">↺ Reset</button>
-      <button class="sb-btn accent" onclick="commitScore()" style="width:auto;">✔ Commit Score</button>
+    <div style="display:flex; justify-content:flex-end; gap:12px;">
+      <button class="sb-btn" onclick="resetForm()" style="width:auto; padding: 0 24px;">↺ Reset</button>
+      <button class="sb-btn accent" onclick="commitScore()" style="width:auto; padding: 0 32px;">✔ Submit Score</button>
     </div>
   </main>
 </div>
 
-<div id="toast" class="toast"></div>
-
 <script>
 'use strict';
-// GLOBALS DECLARED ONLY ONCE
 const CATS = ['Idea','Creativity','Build Quality','UX','Presentation'];
 const SCORE_VALS = [1, 3, 5, 7, 10];
-const SCORE_LBLS = ['1 - Weak','3 - Needs Work','5 - Solid','7 - Strong','10 - Outstanding'];
-const MAX_SCORE = 50;
+const SCORE_LBLS = ['1 - Weak','3 - Fair','5 - Solid','7 - Strong','10 - Elite'];
 let SQL, db, currentUser = null;
 
 async function initDB() {
   try {
-    // CDN Use with HTTPS for Vercel
     SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
     const saved = localStorage.getItem('blackathon_db');
     db = saved ? new SQL.Database(new Uint8Array([...atob(saved)].map(c => c.charCodeAt(0)))) : new SQL.Database();
-    ensureTables();
-    if(!saved) seedAdmin();
-    buildRubric(); refreshStats();
-    document.getElementById('loading').style.display = 'none';
-  } catch (err) {
-    console.error("WASM Compilation Error:", err);
-    document.getElementById('loading').innerHTML = `<div style="color:white; text-align:center; padding:20px;"><h2 style="color:var(--red);">Persistence Error</h2><p style="font-size:0.8rem;">${err.message}</p><button onclick="localStorage.clear(); location.reload();" style="margin-top:10px; padding:8px; cursor:pointer;">Reset Local Data</button></div>`;
-  }
+    db.run("CREATE TABLE IF NOT EXISTS judges (id INTEGER PRIMARY KEY, name TEXT, username TEXT UNIQUE, password TEXT, email TEXT)");
+    db.run("CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, project_name TEXT, team_member TEXT, description TEXT, UNIQUE(project_name, team_member))");
+    db.run("CREATE TABLE IF NOT EXISTS organization (bracket INTEGER, judge_username TEXT, project_name TEXT)");
+    db.run("CREATE TABLE IF NOT EXISTS scores (team TEXT, judge TEXT, total INTEGER)");
+    if(!saved) db.run("INSERT OR IGNORE INTO judges (name, username, password, email) VALUES ('Marcus','admin1','0000','mmcelha@gmail.com')");
+    buildRubric(); document.getElementById('loading').style.display = 'none'; openLogin();
+  } catch (e) { document.getElementById('loading').innerHTML = "<h2 style='color:red'>Browser Engine Blocked</h2><p>Please check your security settings or open in a different browser.</p>"; }
 }
-
-function ensureTables() {
-  db.run(`CREATE TABLE IF NOT EXISTS judges (id INTEGER PRIMARY KEY, name TEXT, username TEXT UNIQUE, password TEXT, email TEXT)`);
-  db.run(`CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, project_name TEXT, team_member TEXT, description TEXT, UNIQUE(project_name, team_member))`);
-  db.run(`CREATE TABLE IF NOT EXISTS organization (bracket INTEGER, judge_username TEXT, project_name TEXT)`);
-  db.run(`CREATE TABLE IF NOT EXISTS scores (team TEXT, judge TEXT, total INTEGER)`);
-}
-
-function seedAdmin() { db.run(`INSERT OR IGNORE INTO judges (name, username, password, email) VALUES ('Marcus','admin1','0000','mmcelha@gmail.com')`); saveToStorage(); }
 
 function saveToStorage() { localStorage.setItem('blackathon_db', btoa(String.fromCharCode(...db.export()))); }
-
-function openLogin() { document.getElementById('login-overlay').classList.add('open'); }
-
+function openLogin() { document.getElementById('login-overlay').style.display = 'flex'; }
 function doLogin() {
   const u = document.getElementById('login-user').value.trim(), p = document.getElementById('login-pass').value;
-  const res = db.exec(`SELECT username, name FROM judges WHERE username=? AND password=?`, [u, p]);
-  if (res.length && res[0].values.length) {
+  const res = db.exec("SELECT username, name FROM judges WHERE username=? AND password=?", [u, p]);
+  if(res.length && res[0].values.length) {
     currentUser = { username: res[0].values[0][0], name: res[0].values[0][1] };
-    document.getElementById('login-overlay').classList.remove('open');
+    document.getElementById('login-overlay').style.display = 'none';
     document.querySelectorAll('.sb-locked').forEach(el => el.classList.add('unlocked'));
     document.getElementById('btn-login').style.display = 'none';
-    const b = document.getElementById('user-badge'); b.style.display = 'flex'; document.getElementById('user-display').textContent = currentUser.name;
-    refreshDropdowns(); showToast(`✅ Welcome ${currentUser.name}`);
-  } else { document.getElementById('login-err').textContent = 'Login Failed'; }
+    document.getElementById('user-badge').style.display = 'flex';
+    document.getElementById('user-display').textContent = currentUser.name;
+    refreshDropdowns();
+  }
 }
 
 function loadTeams(input) {
   const reader = new FileReader();
   reader.onload = e => {
-    const rows = e.target.result.split('\n').slice(1);
-    rows.forEach(r => {
+    e.target.result.split('\n').slice(1).forEach(r => {
       const c = r.split(',');
-      if(c[0]) db.run(`INSERT OR IGNORE INTO teams (project_name, team_member, description) VALUES (?,?,?)`, [c[13]||c[0], c[0], c[15]||'']);
+      if(c[0]) db.run("INSERT OR IGNORE INTO teams (project_name, team_member, description) VALUES (?,?,?)", [c[13]||c[0], c[0], c[15]||'']);
     });
-    saveToStorage(); refreshDropdowns(); showToast("Teams Loaded");
+    saveToStorage(); refreshDropdowns();
   };
   reader.readAsText(input.files[0]);
 }
@@ -200,53 +206,51 @@ function loadTeams(input) {
 function loadJudges(input) {
   const reader = new FileReader();
   reader.onload = e => {
-    const rows = e.target.result.split('\n').slice(1);
-    rows.forEach(r => {
+    e.target.result.split('\n').slice(1).forEach(r => {
       const c = r.split(',');
-      if(c[2]) db.run(`INSERT OR IGNORE INTO judges (name, username, password, email) VALUES (?,?,?,?)`, [c[1], c[2], c[3], c[4]]);
+      if(c[2]) db.run("INSERT OR IGNORE INTO judges (name, username, password, email) VALUES (?,?,?,?)", [c[1], c[2], c[3], c[4]]);
     });
-    saveToStorage(); refreshDropdowns(); showToast("Judges Loaded");
+    saveToStorage(); refreshDropdowns();
   };
   reader.readAsText(input.files[0]);
 }
 
 function doTournamentSetup() {
-  const judgeRows = db.exec("SELECT username FROM judges WHERE username != 'admin1'")[0]?.values.map(r => r[0]) || [];
-  const projectRows = db.exec("SELECT DISTINCT project_name FROM teams")[0]?.values.map(r => r[0]) || [];
-  if(!judgeRows.length) return showToast("❌ Load judges first", true);
+  const j = db.exec("SELECT username FROM judges WHERE username != 'admin1'")[0]?.values.map(r => r[0]) || [];
+  const p = db.exec("SELECT DISTINCT project_name FROM teams")[0]?.values.map(r => r[0]) || [];
   db.run("DELETE FROM organization");
-  projectRows.forEach((p, idx) => {
-    const bracket = (idx % 4) + 1;
-    const judge = judgeRows[idx % judgeRows.length];
-    db.run("INSERT INTO organization (bracket, judge_username, project_name) VALUES (?,?,?)", [bracket, judge, p]);
+  p.forEach((proj, idx) => {
+    db.run("INSERT INTO organization (bracket, judge_username, project_name) VALUES (?,?,?)", [(idx % 4) + 1, j[idx % j.length], proj]);
   });
-  saveToStorage(); refreshDropdowns(); showToast("✅ Setup: 4 Brackets Balanced");
+  saveToStorage(); refreshDropdowns();
 }
 
 function emailJudgeCredentials() {
-  const j = document.getElementById('sel-judge').value;
-  const res = db.exec(`SELECT name, email, password FROM judges WHERE username=?`, [j]);
-  if (!res.length || !res[0].values[0][1]) return showToast("❌ No email found", true);
-  const [name, email, pass] = res[0].values[0];
-  window.location.href = `mailto:${email}?subject=Blackathon Login&body=Hi ${name},%0D%0AUsername: ${j}%0D%0APassword: ${pass}`;
+  const u = document.getElementById('sel-judge').value;
+  const res = db.exec("SELECT name, email, password FROM judges WHERE username=?", [u]);
+  if(res.length && res[0].values[0][1]) {
+    const r = res[0].values[0];
+    window.location.href = `mailto:${r[1]}?subject=Blackathon Login&body=Hi ${r[0]},%0D%0A%0D%0AYour Judging Credentials:%0D%0AUser: ${u}%0D%0APass: ${r[2]}`;
+  }
 }
 
 function refreshDropdowns() {
-  const isAdmin = (currentUser.username === 'admin1');
-  const t = isAdmin ? db.exec("SELECT DISTINCT project_name FROM teams") : db.exec("SELECT project_name FROM organization WHERE judge_username=?", [currentUser.username]);
-  document.getElementById('sel-team').innerHTML = '<option value="">Select Team</option>' + (t[0]?.values.map(v => `<option value="${v[0]}">${v[0]}</option>`).join('') || '');
+  const admin = (currentUser.username === 'admin1');
+  const t = admin ? db.exec("SELECT DISTINCT project_name FROM teams") : db.exec("SELECT project_name FROM organization WHERE judge_username=?", [currentUser.username]);
+  document.getElementById('sel-team').innerHTML = '<option value="">-- Choose Team --</option>' + (t[0]?.values.map(v => `<option value="${v[0]}">${v[0]}</option>`).join('') || '');
   const j = db.exec("SELECT name, username FROM judges");
   document.getElementById('sel-judge').innerHTML = j[0].values.map(v => `<option value="${v[1]}">${v[0]}</option>`).join('');
   document.getElementById('sel-judge').value = currentUser.username;
-  document.getElementById('sel-judge').disabled = !isAdmin;
+  document.getElementById('sel-judge').disabled = !admin;
+  document.getElementById('btn-setup').disabled = !admin;
 }
 
 function buildRubric() {
   const h = document.getElementById('rub-head'), b = document.getElementById('rub-body');
-  h.innerHTML = `<tr><th style="text-align:left; padding-left:12px;">Category</th>${SCORE_LBLS.map(v => `<th>${v}</th>`).join('')}</tr>`;
+  h.innerHTML = `<tr><th style="text-align:left; padding-left:15px; min-width: 150px;">Performance Category</th>${SCORE_LBLS.map(v => `<th>${v}</th>`).join('')}</tr>`;
   CATS.forEach((cat, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${cat}</td>` + SCORE_VALS.map(v => `<td><div class="rub-cell" id="c-${i}-${v}" onclick="pick(${i},${v})"></div></td>`).join('');
+    tr.innerHTML = `<td>${cat}</td>` + SCORE_VALS.map(v => `<td><div class="rub-cell" id="c-${i}-${v}" onclick="pick(${i},${v})">${v}</div></td>`).join('');
     b.appendChild(tr);
   });
 }
@@ -268,24 +272,27 @@ function updateTally() {
 }
 
 function commitScore() {
-  const t = document.getElementById('sel-team').value, j = document.getElementById('sel-judge').value;
-  if(!t) return showToast("❌ Select a team", true);
-  db.run(`INSERT INTO scores (team, judge, total) VALUES (?,?,?)`, [t, j, parseInt(document.getElementById('tally-val').textContent)]);
-  saveToStorage(); refreshStats(); resetForm(); showToast("✅ Score Saved");
+  const t = document.getElementById('sel-team').value;
+  if(!t) return;
+  let total = 0;
+  CATS.forEach((_, i) => {
+    const v = SCORE_VALS.find(s => document.getElementById(`c-${i}-${s}`).classList.contains('on'));
+    if(v) total += v;
+  });
+  db.run("INSERT INTO scores (team, judge, total) VALUES (?,?,?)", [t, currentUser.username, total]);
+  saveToStorage(); resetForm();
 }
 
 function resetForm() { document.querySelectorAll('.rub-cell').forEach(c => c.classList.remove('on')); updateTally(); }
-function onTeamChange() { const p = document.getElementById('sel-team').value; const r = db.exec("SELECT team_member FROM teams WHERE project_name=?", [p]); document.getElementById('idea-txt').textContent = r[0] ? `👥 ` + r[0].values.map(v=>v[0]).join(', ') : ''; }
-function onJudgeChange() { }
-function refreshStats() { document.getElementById('s-scores').textContent = db.exec("SELECT COUNT(*) FROM scores")[0].values[0][0]; }
-function showToast(m, err) { const t = document.getElementById('toast'); if(t) { t.textContent = m; t.style.background = err ? 'var(--red)' : 'var(--green)'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2500); } }
-function exportDB() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([db.export()])); a.download = 'blackathon.db'; a.click(); }
-function clearAllData() { if(confirm("Clear All?")) { localStorage.clear(); location.reload(); } }
+function onTeamChange() {
+  const p = document.getElementById('sel-team').value;
+  const r = db.exec("SELECT team_member FROM teams WHERE project_name=?", [p]);
+  document.getElementById('idea-txt').textContent = r[0] ? "👥 Project Team: " + r[0].values.map(v => v[0]).join(', ') : "";
+}
+function exportDB() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([db.export()])); a.download = 'blackathon_master.db'; a.click(); }
+function clearAllData() { if(confirm("This will PERMANENTLY WIPE all scores and data on this device. Proceed?")) { localStorage.clear(); location.reload(); } }
 
-// DOMContentLoaded wrapper to avoid "null" reference errors
-window.addEventListener('DOMContentLoaded', () => {
-  initDB();
-});
+window.addEventListener('DOMContentLoaded', initDB);
 </script>
 </body>
 </html>
