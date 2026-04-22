@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { HeaderBar, PageShell } from "@/components/shell";
 import { getPhase } from "@/lib/phase";
@@ -74,9 +75,14 @@ export default async function Home({
               ⬡
             </span>
           </div>
-          <h1 className="hex-title animate-fade-up text-7xl tracking-[0.15em] md:text-8xl">
-            BLACKATHON
-          </h1>
+          <Image
+            src="/blackathon_text_final.png"
+            alt="Blackathon"
+            width={700}
+            height={83}
+            priority
+            className="h-16 w-auto animate-fade-up drop-shadow-[0_0_30px_rgba(245,197,24,.25)] md:h-24"
+          />
           <div className="mt-5 flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-dust animate-fade-up">
             <span className="h-px w-10 bg-line" />
             <span>Score Card System</span>
