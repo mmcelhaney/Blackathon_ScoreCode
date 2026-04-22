@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <style>
 /* ════════════════════════════════════════════
-   RESTORED ORIGINAL STYLING & COLORS
+   ORIGINAL STYLING & COLORS
 ════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -136,19 +136,26 @@ table.rub td:first-child { text-align:left; font-family:'Barlow Condensed',sans-
 
 <script>
 'use strict';
+// GLOBALS DECLARED ONLY ONCE
 const CATS = ['Idea','Creativity','Build Quality','UX','Presentation'];
 const SCORE_VALS = [1, 3, 5, 7, 10];
 const SCORE_LBLS = ['1 - Weak','3 - Needs Work','5 - Solid','7 - Strong','10 - Outstanding'];
+const MAX_SCORE = 50;
 let SQL, db, currentUser = null;
 
 async function initDB() {
-  SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
-  const saved = localStorage.getItem('blackathon_db');
-  db = saved ? new SQL.Database(new Uint8Array([...atob(saved)].map(c => c.charCodeAt(0)))) : new SQL.Database();
-  ensureTables();
-  if(!saved) seedAdmin();
-  buildRubric(); refreshStats();
-  document.getElementById('loading').style.display = 'none';
+  try {
+    SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+    const saved = localStorage.getItem('blackathon_db');
+    db = saved ? new SQL.Database(new Uint8Array([...atob(saved)].map(c => c.charCodeAt(0)))) : new SQL.Database();
+    ensureTables();
+    if(!saved) seedAdmin();
+    buildRubric(); refreshStats();
+    document.getElementById('loading').style.display = 'none';
+  } catch (err) {
+    console.error("WASM Compilation Error:", err);
+    document.getElementById('loading').innerHTML = "<h2>Error Loading Engine</h2><p>Check browser security settings.</p>";
+  }
 }
 
 function ensureTables() {
@@ -172,7 +179,8 @@ function doLogin() {
     document.getElementById('login-overlay').classList.remove('open');
     document.querySelectorAll('.sb-locked').forEach(el => el.classList.add('unlocked'));
     document.getElementById('btn-login').style.display = 'none';
-    document.getElementById('user-badge').style.display = 'flex';
+    const badge = document.getElementById('user-badge');
+    badge.style.display = 'flex';
     document.getElementById('user-display').textContent = currentUser.name;
     refreshDropdowns();
     showToast(`✅ Welcome ${currentUser.name}`);
@@ -185,13 +193,7 @@ function loadTeams(input) {
     const rows = e.target.result.split('\n').slice(1);
     rows.forEach(r => {
       const c = r.split(',');
-      // Mapping based on "Project Submissions-Grid view (1).csv"
-      // index 0: Full Legal Name
-      // index 13: Project Name
-      // index 15: Project Description
-      if(c[0] && c[13]) {
-        db.run(`INSERT OR IGNORE INTO teams (project_name, team_member, description) VALUES (?,?,?)`, [c[13], c[0], c[15]||'']);
-      }
+      if(c[0]) db.run(`INSERT OR IGNORE INTO teams (project_name, team_member, description) VALUES (?,?,?)`, [c[13]||c[0], c[0], c[15]||'']);
     });
     saveToStorage(); refreshDropdowns(); showToast("Teams Loaded");
   };
@@ -212,13 +214,13 @@ function loadJudges(input) {
 }
 
 function doTournamentSetup() {
-  const judges = db.exec("SELECT username FROM judges WHERE username != 'admin1'")[0]?.values.map(r => r[0]) || [];
-  const projects = db.exec("SELECT DISTINCT project_name FROM teams")[0]?.values.map(r => r[0]) || [];
-  if(!judges.length) return showToast("❌ Load judges first", true);
+  const judgeRows = db.exec("SELECT username FROM judges WHERE username != 'admin1'")[0]?.values.map(r => r[0]) || [];
+  const projectRows = db.exec("SELECT DISTINCT project_name FROM teams")[0]?.values.map(r => r[0]) || [];
+  if(!judgeRows.length) return showToast("❌ Load judges first", true);
   db.run("DELETE FROM organization");
-  projects.forEach((p, idx) => {
+  projectRows.forEach((p, idx) => {
     const bracket = (idx % 4) + 1;
-    const judge = judges[idx % judges.length];
+    const judge = judgeRows[idx % judgeRows.length];
     db.run("INSERT INTO organization (bracket, judge_username, project_name) VALUES (?,?,?)", [bracket, judge, p]);
   });
   saveToStorage(); refreshDropdowns(); showToast("✅ Setup: 4 Brackets Balanced");
@@ -265,7 +267,8 @@ function updateTally() {
     if(v) total += v;
   });
   document.getElementById('tally-val').textContent = `${total} / 50`;
-  document.getElementById('progress-fill').style.width = `${(total/50)*100}%`;
+  const fill = document.getElementById('progress-fill');
+  if(fill) fill.style.width = `${(total/50)*100}%`;
 }
 
 function commitScore() {
@@ -276,22 +279,17 @@ function commitScore() {
 }
 
 function resetForm() { document.querySelectorAll('.rub-cell').forEach(c => c.classList.remove('on')); updateTally(); }
-function onTeamChange() { 
-  const p = document.getElementById('sel-team').value; 
-  const r = db.exec("SELECT team_member, description FROM teams WHERE project_name=?", [p]); 
-  if (r[0]) {
-    document.getElementById('idea-txt').innerHTML = `<strong>Members:</strong> ${r[0].values.map(v=>v[0]).join(', ')}<br><strong>Description:</strong> ${r[0].values[0][1]}`;
-  } else {
-    document.getElementById('idea-txt').textContent = '';
-  }
-}
+function onTeamChange() { const p = document.getElementById('sel-team').value; const r = db.exec("SELECT team_member FROM teams WHERE project_name=?", [p]); document.getElementById('idea-txt').textContent = r[0] ? `👥 ` + r[0].values.map(v=>v[0]).join(', ') : ''; }
 function onJudgeChange() { }
 function refreshStats() { document.getElementById('s-scores').textContent = db.exec("SELECT COUNT(*) FROM scores")[0].values[0][0]; }
-function showToast(m, err) { const t = document.getElementById('toast'); t.textContent = m; t.style.background = err ? 'var(--red)' : 'var(--green)'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2500); }
+function showToast(m, err) { const t = document.getElementById('toast'); if(t) { t.textContent = m; t.style.background = err ? 'var(--red)' : 'var(--green)'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2500); } }
 function exportDB() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([db.export()])); a.download = 'blackathon.db'; a.click(); }
 function clearAllData() { if(confirm("Clear All?")) { localStorage.clear(); location.reload(); } }
 
-initDB();
+// DOMContentLoaded wrapper to avoid "null" reference errors
+window.addEventListener('DOMContentLoaded', () => {
+  initDB();
+});
 </script>
 </body>
 </html>
