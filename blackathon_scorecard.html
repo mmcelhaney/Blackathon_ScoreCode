@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <style>
 /* ════════════════════════════════════════════
-   ORIGINAL STYLING & COLORS
+   RESTORED ORIGINAL STYLING & COLORS
 ════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -59,7 +59,6 @@ table.rub td { border:1px solid var(--border); padding:5px; text-align:center; b
 table.rub td:first-child { text-align:left; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--text); background:var(--bg-cell-fc); padding-left:12px; }
 .rub-cell { cursor:pointer; width:42px; height:42px; border:2px solid var(--border); border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--muted); transition: .12s; }
 .rub-cell.on { border-color:var(--gold); background:var(--gold-glow); color:var(--gold); }
-.rub-cell.on::after { content:'✓'; font-size:.9rem; }
 .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(90px); background:var(--green); color:#0A0A0A; padding:12px 28px; border-radius:30px; font-family:'Barlow Condensed',sans-serif; font-weight:700; transition:transform .3s, opacity .3s; z-index:3000; opacity:0; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 #login-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 8000; align-items: center; justify-content: center; padding: 20px; }
@@ -82,7 +81,7 @@ table.rub td:first-child { text-align:left; font-family:'Barlow Condensed',sans-
 </div>
 
 <header>
-  <div class="hdr-left"><div class="user-badge" id="user-badge" style="display:none; color:var(--muted); font-size:.7rem; gap:8px; align-items:center;"><strong id="user-display"></strong><button onclick="location.reload()" style="background:none; border:1px solid var(--border); color:var(--muted); padding:2px 8px; border-radius:10px; cursor:pointer;">Logout</button></div></div>
+  <div class="hdr-left"><div class="user-badge" id="user-badge" style="display:none; color:var(--muted); font-size:.7rem; gap:8px; align-items:center;"><strong id="user-display"></strong><button onclick="localStorage.clear(); location.reload();" style="background:none; border:1px solid var(--border); color:var(--muted); padding:2px 8px; border-radius:10px; cursor:pointer;">Logout</button></div></div>
   <div class="hdr-brand"><h1>⬡ Blackathon Score Card</h1><p style="font-family:'Barlow Condensed'; color:var(--muted); letter-spacing:3px; text-transform:uppercase; text-align:center;">BlackWPT Hackathon · April 24, 2026</p></div>
   <button onclick="document.documentElement.classList.toggle('light')" style="background:none; border:none; cursor:pointer; font-size:1.2rem;">🌓</button>
 </header>
@@ -145,6 +144,7 @@ let SQL, db, currentUser = null;
 
 async function initDB() {
   try {
+    // CDN Use with HTTPS for Vercel
     SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
     const saved = localStorage.getItem('blackathon_db');
     db = saved ? new SQL.Database(new Uint8Array([...atob(saved)].map(c => c.charCodeAt(0)))) : new SQL.Database();
@@ -154,7 +154,7 @@ async function initDB() {
     document.getElementById('loading').style.display = 'none';
   } catch (err) {
     console.error("WASM Compilation Error:", err);
-    document.getElementById('loading').innerHTML = "<h2>Error Loading Engine</h2><p>Check browser security settings.</p>";
+    document.getElementById('loading').innerHTML = `<div style="color:white; text-align:center; padding:20px;"><h2 style="color:var(--red);">Persistence Error</h2><p style="font-size:0.8rem;">${err.message}</p><button onclick="localStorage.clear(); location.reload();" style="margin-top:10px; padding:8px; cursor:pointer;">Reset Local Data</button></div>`;
   }
 }
 
@@ -179,11 +179,8 @@ function doLogin() {
     document.getElementById('login-overlay').classList.remove('open');
     document.querySelectorAll('.sb-locked').forEach(el => el.classList.add('unlocked'));
     document.getElementById('btn-login').style.display = 'none';
-    const badge = document.getElementById('user-badge');
-    badge.style.display = 'flex';
-    document.getElementById('user-display').textContent = currentUser.name;
-    refreshDropdowns();
-    showToast(`✅ Welcome ${currentUser.name}`);
+    const b = document.getElementById('user-badge'); b.style.display = 'flex'; document.getElementById('user-display').textContent = currentUser.name;
+    refreshDropdowns(); showToast(`✅ Welcome ${currentUser.name}`);
   } else { document.getElementById('login-err').textContent = 'Login Failed'; }
 }
 
@@ -267,8 +264,7 @@ function updateTally() {
     if(v) total += v;
   });
   document.getElementById('tally-val').textContent = `${total} / 50`;
-  const fill = document.getElementById('progress-fill');
-  if(fill) fill.style.width = `${(total/50)*100}%`;
+  const f = document.getElementById('progress-fill'); if(f) f.style.width = `${(total/50)*100}%`;
 }
 
 function commitScore() {
