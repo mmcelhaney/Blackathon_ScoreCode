@@ -68,13 +68,6 @@ export default async function Home({
           <div className="pill-gold mb-6 animate-fade-up">
             BlackWPT Hackathon · April 24, 2026
           </div>
-          <div className="relative mb-6 flex h-24 w-24 items-center justify-center animate-fade-up">
-            <div className="absolute inset-0 animate-pulse rounded-full border border-gold/30" />
-            <div className="absolute -inset-3 rounded-full border border-gold/10" />
-            <span className="text-6xl text-gold drop-shadow-[0_0_24px_rgba(245,197,24,.5)]">
-              ⬡
-            </span>
-          </div>
           <Image
             src="/blackathon_text_final.png"
             alt="Blackathon"
