@@ -8,10 +8,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <style>
 /* ════════════════════════════════════════════
-   RESET & CUSTOM PROPERTIES
+   RESTORED ORIGINAL STYLING & COLORS
 ════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
   --gold: #F5C518;  --gold2: #D4A017;  --gold-glow: rgba(245,197,24,.18);
   --red:  #C0392B;  --green: #27AE60;
@@ -33,8 +32,255 @@
   --pat-b: rgba(192,57,43,.025);
 }
 html.light {
-  --bg-body:    #F2EDE3;
-  --bg-shell:   #FFF;
+  --bg-body: #F2EDE3; --bg-shell: #FFF; --bg-aside: #EDE7DA;
+  --bg-form: #F7F3EC; --bg-input: #EDE7DA; --bg-cell: #FFF;
+  --bg-cell-hd: #E5DFD2; --bg-cell-fc: #EDE7DA;
+  --text: #1A1208; --muted: #7A6A55; --border: #C8BFA8;
+}
+body {
+  background: var(--bg-body);
+  background-image: repeating-linear-gradient(45deg, var(--pat-a) 0 1px, transparent 1px 16px), repeating-linear-gradient(-45deg, var(--pat-b) 0 1px, transparent 1px 16px);
+  font-family: 'Barlow', sans-serif; color: var(--text); min-height: 100%; display: flex; flex-direction: column; align-items: center; padding-bottom: 80px;
+}
+#loading { position: fixed; inset: 0; background: var(--bg-body); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+#loading h2 { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:4px; color:var(--gold); }
+header { position: sticky; top: 0; z-index: 200; width: 100%; background: var(--bg-body); border-bottom: 1px solid var(--border); padding: 10px 18px 8px; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
+.hdr-brand h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(1.4rem,4.5vw,2rem); letter-spacing:4px; background:linear-gradient(135deg,var(--gold) 0%,#fff 50%,var(--gold2) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.page-wrap { width:100%; max-width:var(--max-w); padding:20px 18px 0; display:flex; gap:18px; align-items:flex-start; }
+aside { width:var(--sidebar-w); flex-shrink:0; background:var(--bg-aside); border:1px solid var(--border); border-radius:var(--radius); display:flex; flex-direction:column; padding:14px 12px; gap:8px; position:sticky; top:88px; }
+.sb-locked { display: none; opacity: 0; }
+.sb-locked.unlocked { display: flex; opacity: 1; }
+.sb-btn { width:100%; min-height:var(--touch); padding:9px 10px; background:var(--bg-form); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:'Barlow Condensed',sans-serif; font-size:.84rem; cursor:pointer; text-align:left; display:flex; align-items:center; gap:8px; }
+.sb-btn.accent { background:linear-gradient(135deg,var(--gold2),var(--gold)); color:#0A0A0A; font-weight:700; border-color:transparent; }
+.form-sec { background:var(--bg-form); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow); }
+table.rub { width:100%; border-collapse:collapse; }
+table.rub th { font-family:'Barlow Condensed',sans-serif; font-size:.62rem; text-transform:uppercase; letter-spacing:1px; color:var(--gold); background:var(--bg-cell-hd); padding:9px 6px; border:1px solid var(--border); text-align:center; }
+table.rub td { border:1px solid var(--border); padding:5px; text-align:center; background:var(--bg-cell); }
+table.rub td:first-child { text-align:left; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--text); background:var(--bg-cell-fc); padding-left:12px; }
+.rub-cell { cursor:pointer; width:42px; height:42px; border:2px solid var(--border); border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--muted); transition: .12s; }
+.rub-cell.on { border-color:var(--gold); background:var(--gold-glow); color:var(--gold); }
+.rub-cell.on::after { content:'✓'; font-size:.9rem; }
+.toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(90px); background:var(--green); color:#0A0A0A; padding:12px 28px; border-radius:30px; font-family:'Barlow Condensed',sans-serif; font-weight:700; transition:transform .3s, opacity .3s; z-index:3000; opacity:0; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#login-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 8000; align-items: center; justify-content: center; padding: 20px; }
+#login-overlay.open { display: flex; }
+.login-box { background: var(--bg-shell); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><h2>Blackathon</h2><p>Loading Persistence Layer…</p></div>
+
+<div id="login-overlay">
+  <div class="login-box">
+    <div style="font-family:'Bebas Neue'; font-size:1.6rem; color:var(--gold); text-align:center;">⬡ Blackathon Login</div>
+    <input type="text" id="login-user" placeholder="Username" style="padding:10px; background:var(--bg-input); border:1px solid var(--border); color:var(--text);"/>
+    <input type="password" id="login-pass" placeholder="Password" style="padding:10px; background:var(--bg-input); border:1px solid var(--border); color:var(--text);"/>
+    <div id="login-err" style="color:var(--red); font-size:.8rem; text-align:center;"></div>
+    <button class="sb-btn accent" onclick="doLogin()" style="justify-content:center;">🔓 Login</button>
+  </div>
+</div>
+
+<header>
+  <div class="hdr-left"><div class="user-badge" id="user-badge" style="display:none; color:var(--muted); font-size:.7rem; gap:8px; align-items:center;"><strong id="user-display"></strong><button onclick="location.reload()" style="background:none; border:1px solid var(--border); color:var(--muted); padding:2px 8px; border-radius:10px; cursor:pointer;">Logout</button></div></div>
+  <div class="hdr-brand"><h1>⬡ Blackathon Score Card</h1><p style="font-family:'Barlow Condensed'; color:var(--muted); letter-spacing:3px; text-transform:uppercase; text-align:center;">BlackWPT Hackathon · April 24, 2026</p></div>
+  <button onclick="document.documentElement.classList.toggle('light')" style="background:none; border:none; cursor:pointer; font-size:1.2rem;">🌓</button>
+</header>
+
+<div class="page-wrap">
+  <aside id="aside">
+    <div class="sec-label">Access</div><button id="btn-login" onclick="openLogin()" class="sb-btn accent">🔐 Admin Login</button>
+    <div class="sec-label sb-locked">Tournament</div><button class="sb-btn sb-locked" id="btn-setup" onclick="doTournamentSetup()">⚙ Setup</button>
+    <div class="sec-label sb-locked">Import</div>
+    <button class="sb-btn sb-locked" onclick="document.getElementById('teamsFile').click()">📋 Load Teams</button>
+    <button class="sb-btn sb-locked" onclick="document.getElementById('judgesFile').click()">👤 Load Judges</button>
+    <input type="file" id="teamsFile" hidden onchange="loadTeams(this)" accept=".csv"/>
+    <input type="file" id="judgesFile" hidden onchange="loadJudges(this)" accept=".csv"/>
+    <div class="sec-label sb-locked">Persistence</div>
+    <button class="sb-btn sb-locked" style="border-color:var(--green); color:var(--green);" onclick="exportDB()">💾 Export .db</button>
+    <button class="sb-btn sb-locked" id="btn-email" onclick="emailJudgeCredentials()">📧 Email Pswd</button>
+    <button class="sb-btn sb-locked" style="border-color:var(--red); color:var(--red);" onclick="clearAllData()">🗑 Clear Data</button>
+    <div class="sec-label sb-locked">Live Stats</div><div id="s-scores" style="font-family:'Bebas Neue'; color:var(--gold); font-size:1.9rem;">0</div>
+  </aside>
+
+  <main>
+    <div class="form-sec">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div><label style="font-size:.65rem; color:var(--muted); text-transform:uppercase;">Team</label><select id="sel-team" onchange="onTeamChange()"></select></div>
+        <div><label style="font-size:.65rem; color:var(--muted); text-transform:uppercase;">Judge</label><select id="sel-judge" onchange="onJudgeChange()"></select></div>
+      </div>
+      <div id="idea-txt" style="font-size:.72rem; color:var(--muted); margin-top:8px;"></div>
+    </div>
+
+    <div class="score-tally">
+      <span style="font-size:.65rem; color:var(--muted); text-transform:uppercase;">Score</span>
+      <div style="flex:1; height:8px; background:var(--bg-input); border-radius:4px; overflow:hidden;"><div id="progress-fill" style="height:100%; width:0%; background:linear-gradient(90deg,var(--red),var(--gold),var(--green)); transition:width .3s;"></div></div>
+      <span id="tally-val" style="font-family:'Bebas Neue'; font-size:1.6rem; color:var(--gold);">0 / 50</span>
+    </div>
+
+    <div class="form-sec">
+      <table class="rub">
+        <thead id="rub-head"></thead>
+        <tbody id="rub-body"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="sb-btn" onclick="resetForm()" style="width:auto;">↺ Reset</button>
+      <button class="sb-btn accent" onclick="commitScore()" style="width:auto;">✔ Commit Score</button>
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+'use strict';
+const CATS = ['Idea','Creativity','Build Quality','UX','Presentation'];
+const SCORE_VALS = [1, 3, 5, 7, 10];
+const SCORE_LBLS = ['1 - Weak','3 - Needs Work','5 - Solid','7 - Strong','10 - Outstanding'];
+let SQL, db, currentUser = null;
+
+async function initDB() {
+  SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+  const saved = localStorage.getItem('blackathon_db');
+  db = saved ? new SQL.Database(new Uint8Array([...atob(saved)].map(c => c.charCodeAt(0)))) : new SQL.Database();
+  ensureTables();
+  if(!saved) seedAdmin();
+  buildRubric(); refreshStats();
+  document.getElementById('loading').style.display = 'none';
+}
+
+function ensureTables() {
+  db.run(`CREATE TABLE IF NOT EXISTS judges (id INTEGER PRIMARY KEY, name TEXT, username TEXT UNIQUE, password TEXT, email TEXT)`);
+  db.run(`CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, project_name TEXT, team_member TEXT, description TEXT, UNIQUE(project_name, team_member))`);
+  db.run(`CREATE TABLE IF NOT EXISTS organization (bracket INTEGER, judge_username TEXT, project_name TEXT)`);
+  db.run(`CREATE TABLE IF NOT EXISTS scores (team TEXT, judge TEXT, total INTEGER)`);
+}
+
+function seedAdmin() { db.run(`INSERT OR IGNORE INTO judges (name, username, password, email) VALUES ('Marcus','admin1','0000','mmcelha@gmail.com')`); saveToStorage(); }
+
+function saveToStorage() { localStorage.setItem('blackathon_db', btoa(String.fromCharCode(...db.export()))); }
+
+function openLogin() { document.getElementById('login-overlay').classList.add('open'); }
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim(), p = document.getElementById('login-pass').value;
+  const res = db.exec(`SELECT username, name FROM judges WHERE username=? AND password=?`, [u, p]);
+  if (res.length && res[0].values.length) {
+    currentUser = { username: res[0].values[0][0], name: res[0].values[0][1] };
+    document.getElementById('login-overlay').classList.remove('open');
+    document.querySelectorAll('.sb-locked').forEach(el => el.classList.add('unlocked'));
+    document.getElementById('btn-login').style.display = 'none';
+    document.getElementById('user-badge').style.display = 'flex';
+    document.getElementById('user-display').textContent = currentUser.name;
+    refreshDropdowns();
+    showToast(`✅ Welcome ${currentUser.name}`);
+  } else { document.getElementById('login-err').textContent = 'Login Failed'; }
+}
+
+function loadTeams(input) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = e.target.result.split('\n').slice(1);
+    rows.forEach(r => {
+      const c = r.split(',');
+      if(c[0]) db.run(`INSERT OR IGNORE INTO teams (project_name, team_member, description) VALUES (?,?,?)`, [c[13]||c[0], c[0], c[15]||'']);
+    });
+    saveToStorage(); refreshDropdowns(); showToast("Teams Loaded");
+  };
+  reader.readAsText(input.files[0]);
+}
+
+function loadJudges(input) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = e.target.result.split('\n').slice(1);
+    rows.forEach(r => {
+      const c = r.split(',');
+      if(c[2]) db.run(`INSERT OR IGNORE INTO judges (name, username, password, email) VALUES (?,?,?,?)`, [c[1], c[2], c[3], c[4]]);
+    });
+    saveToStorage(); refreshDropdowns(); showToast("Judges Loaded");
+  };
+  reader.readAsText(input.files[0]);
+}
+
+function doTournamentSetup() {
+  const judges = db.exec("SELECT username FROM judges WHERE username != 'admin1'")[0]?.values.map(r => r[0]) || [];
+  const projects = db.exec("SELECT DISTINCT project_name FROM teams")[0]?.values.map(r => r[0]) || [];
+  if(!judges.length) return showToast("❌ Load judges first", true);
+  db.run("DELETE FROM organization");
+  projects.forEach((p, idx) => {
+    const bracket = (idx % 4) + 1;
+    const judge = judges[idx % judges.length];
+    db.run("INSERT INTO organization (bracket, judge_username, project_name) VALUES (?,?,?)", [bracket, judge, p]);
+  });
+  saveToStorage(); refreshDropdowns(); showToast("✅ Setup: 4 Brackets Balanced");
+}
+
+function emailJudgeCredentials() {
+  const j = document.getElementById('sel-judge').value;
+  const res = db.exec(`SELECT name, email, password FROM judges WHERE username=?`, [j]);
+  if (!res.length || !res[0].values[0][1]) return showToast("❌ No email found", true);
+  const [name, email, pass] = res[0].values[0];
+  window.location.href = `mailto:${email}?subject=Blackathon Login&body=Hi ${name},%0D%0AUsername: ${j}%0D%0APassword: ${pass}`;
+}
+
+function refreshDropdowns() {
+  const isAdmin = (currentUser.username === 'admin1');
+  const t = isAdmin ? db.exec("SELECT DISTINCT project_name FROM teams") : db.exec("SELECT project_name FROM organization WHERE judge_username=?", [currentUser.username]);
+  document.getElementById('sel-team').innerHTML = '<option value="">Select Team</option>' + (t[0]?.values.map(v => `<option value="${v[0]}">${v[0]}</option>`).join('') || '');
+  const j = db.exec("SELECT name, username FROM judges");
+  document.getElementById('sel-judge').innerHTML = j[0].values.map(v => `<option value="${v[1]}">${v[0]}</option>`).join('');
+  document.getElementById('sel-judge').value = currentUser.username;
+  document.getElementById('sel-judge').disabled = !isAdmin;
+}
+
+function buildRubric() {
+  const h = document.getElementById('rub-head'), b = document.getElementById('rub-body');
+  h.innerHTML = `<tr><th style="text-align:left; padding-left:12px;">Category</th>${SCORE_LBLS.map(v => `<th>${v}</th>`).join('')}</tr>`;
+  CATS.forEach((cat, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${cat}</td>` + SCORE_VALS.map(v => `<td><div class="rub-cell" id="c-${i}-${v}" onclick="pick(${i},${v})"></div></td>`).join('');
+    b.appendChild(tr);
+  });
+}
+
+function pick(r, v) {
+  SCORE_VALS.forEach(s => document.getElementById(`c-${r}-${s}`).classList.remove('on'));
+  document.getElementById(`c-${r}-${v}`).classList.add('on');
+  updateTally();
+}
+
+function updateTally() {
+  let total = 0;
+  CATS.forEach((_, i) => {
+    const v = SCORE_VALS.find(s => document.getElementById(`c-${i}-${s}`).classList.contains('on'));
+    if(v) total += v;
+  });
+  document.getElementById('tally-val').textContent = `${total} / 50`;
+  document.getElementById('progress-fill').style.width = `${(total/50)*100}%`;
+}
+
+function commitScore() {
+  const t = document.getElementById('sel-team').value, j = document.getElementById('sel-judge').value;
+  if(!t) return showToast("❌ Select a team", true);
+  db.run(`INSERT INTO scores (team, judge, total) VALUES (?,?,?)`, [t, j, parseInt(document.getElementById('tally-val').textContent)]);
+  saveToStorage(); refreshStats(); resetForm(); showToast("✅ Score Saved");
+}
+
+function resetForm() { document.querySelectorAll('.rub-cell').forEach(c => c.classList.remove('on')); updateTally(); }
+function onTeamChange() { const p = document.getElementById('sel-team').value; const r = db.exec("SELECT team_member FROM teams WHERE project_name=?", [p]); document.getElementById('idea-txt').textContent = r[0] ? `👥 ` + r[0].values.map(v=>v[0]).join(', ') : ''; }
+function onJudgeChange() { }
+function refreshStats() { document.getElementById('s-scores').textContent = db.exec("SELECT COUNT(*) FROM scores")[0].values[0][0]; }
+function showToast(m, err) { const t = document.getElementById('toast'); t.textContent = m; t.style.background = err ? 'var(--red)' : 'var(--green)'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2500); }
+function exportDB() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([db.export()])); a.download = 'blackathon.db'; a.click(); }
+function clearAllData() { if(confirm("Clear All?")) { localStorage.clear(); location.reload(); } }
+
+initDB();
+</script>
+</body>
+</html>  --bg-shell:   #FFF;
   --bg-aside:   #EDE7DA;
   --bg-form:    #F7F3EC;
   --bg-input:   #EDE7DA;
