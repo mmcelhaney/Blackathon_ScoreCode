@@ -83,15 +83,19 @@ export function ScoreForm({
         {RUBRIC.map((r) => (
           <div key={r.key}>
             <div className="flex items-baseline justify-between">
-              <label className="field-label">
+              <label className="font-cond text-sm font-bold uppercase tracking-[0.15em] text-bone">
                 {r.label}
-                {r.iceBreaker && <span className="ml-2 text-[0.6rem] text-gold">ICE-BREAKER</span>}
+                {r.iceBreaker && (
+                  <span className="ml-2 text-[0.6rem] text-gold">
+                    ICE-BREAKER
+                  </span>
+                )}
               </label>
               <span className="font-display text-xl text-bone">
                 {values[r.key] ?? "–"}
               </span>
             </div>
-            <p className="mb-1.5 text-[0.7rem] text-dust">{r.blurb}</p>
+            <p className="mb-1.5 text-[0.72rem] text-bone/70">{r.blurb}</p>
             <div className="grid grid-cols-10 gap-1">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
                 const on = values[r.key] === n;
