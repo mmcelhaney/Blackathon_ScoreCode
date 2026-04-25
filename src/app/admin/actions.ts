@@ -248,6 +248,81 @@ export async function setSharedJudgePassword(
   return { ok: true, updated, failed, details };
 }
 
+// ── diagnose sign-in — pinpoints exactly why a judge can't log in ──
+export async function diagnoseJudgeSignIn(
+  _: unknown,
+  form: FormData,
+): Promise<
+  | {
+      ok: true;
+      authUserExists: boolean;
+      authUserId: string | null;
+      emailConfirmedAt: string | null;
+      hasJudgeRow: boolean;
+      isActive: boolean | null;
+      signInResult: "success" | "failed";
+      signInError: string | null;
+    }
+  | { ok: false; error: string }
+> {
+  if (!(await isAdminSignedIn())) throw new Error("Not authorized");
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const password = String(form.get("password") ?? "");
+  if (!email || !password) return { ok: false, error: "Email + password required" };
+
+  const admin = createAdminClient();
+
+  // 1. Find auth user
+  let authUserExists = false;
+  let authUserId: string | null = null;
+  let emailConfirmedAt: string | null = null;
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error || !data) break;
+    const hit = data.users.find((u) => u.email?.toLowerCase() === email);
+    if (hit) {
+      authUserExists = true;
+      authUserId = hit.id;
+      emailConfirmedAt = hit.email_confirmed_at ?? null;
+      break;
+    }
+    if (data.users.length < 200) break;
+  }
+
+  // 2. Find judges row
+  const { data: judgeRow } = await admin
+    .from("judges")
+    .select("id, is_active")
+    .eq("email", email)
+    .maybeSingle();
+  const hasJudgeRow = !!judgeRow;
+  const isActive = judgeRow?.is_active ?? null;
+
+  // 3. Attempt actual sign-in via the public anon client (the same path the
+  //    browser uses). This tells us exactly what Supabase says.
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { createClient: createAnonClient } = await import("@supabase/supabase-js");
+  const anon = createAnonClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, anonKey!);
+  const { data: signed, error: signErr } = await anon.auth.signInWithPassword({
+    email,
+    password,
+  });
+  const signInResult: "success" | "failed" = signed?.user ? "success" : "failed";
+
+  return {
+    ok: true,
+    authUserExists,
+    authUserId,
+    emailConfirmedAt,
+    hasJudgeRow,
+    isActive,
+    signInResult,
+    signInError: signErr?.message ?? null,
+  };
+}
+
 // ── one-off test account with a known password ──────────────────
 
 // Paginated lookup — auth.admin.listUsers only returns 50/page, so a single

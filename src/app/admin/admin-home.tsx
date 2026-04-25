@@ -6,6 +6,7 @@ import {
   addJudge,
   computeAndLockTop6,
   createTestJudge,
+  diagnoseJudgeSignIn,
   importCsv,
   removeJudge,
   setPhase,
@@ -367,6 +368,28 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
   >(null);
   const [testPending, testStart] = useTransition();
 
+  type DiagOk = {
+    ok: true;
+    authUserExists: boolean;
+    authUserId: string | null;
+    emailConfirmedAt: string | null;
+    hasJudgeRow: boolean;
+    isActive: boolean | null;
+    signInResult: "success" | "failed";
+    signInError: string | null;
+  };
+  const [diagState, setDiagState] = useState<
+    DiagOk | { ok: false; error: string } | null
+  >(null);
+  const [diagPending, diagStart] = useTransition();
+
+  function onDiagnose(fd: FormData) {
+    diagStart(async () => {
+      const r = await diagnoseJudgeSignIn(null, fd);
+      setDiagState(r);
+    });
+  }
+
   function onAdd(role: "judge" | "mentor", formId: string) {
     return (fd: FormData) => {
       fd.set("role", role);
@@ -534,6 +557,98 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
         {testState && !testState.ok && (
           <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
             {testState.error}
+          </div>
+        )}
+      </form>
+
+      {/* Diagnose Sign-In — pinpoints exact failure for a specific judge */}
+      <form
+        id="diag-form"
+        action={onDiagnose}
+        className="card space-y-3 border-l-4 border-l-blood/60"
+      >
+        <div className="flex items-baseline justify-between">
+          <span className="rounded-full border border-blood/60 bg-blood/10 px-3 py-1 text-[0.7rem] uppercase tracking-wider text-blood">
+            Diagnose Sign-In
+          </span>
+          <span className="text-[0.65rem] uppercase tracking-wider text-dust">
+            For debugging "wrong email or password"
+          </span>
+        </div>
+        <p className="text-xs text-dust">
+          Enter a judge's email + the password you expect. Returns whether the
+          auth user exists, whether their email is confirmed, whether they're
+          on the judges roster, and the exact Supabase error from a real
+          sign-in attempt.
+        </p>
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+          <div>
+            <label className="field-label">Email</label>
+            <input
+              name="email"
+              type="email"
+              required
+              className="field-input mt-1"
+              placeholder="esco@algorythm.org"
+            />
+          </div>
+          <div>
+            <label className="field-label">Password</label>
+            <input
+              name="password"
+              type="text"
+              required
+              autoComplete="off"
+              className="field-input mt-1"
+              placeholder="blackathon2026"
+            />
+          </div>
+          <div className="flex items-end">
+            <button className="btn" disabled={diagPending}>
+              {diagPending ? "Checking…" : "🔎 Diagnose"}
+            </button>
+          </div>
+        </div>
+        {diagState && diagState.ok && (
+          <div className="rounded-md border border-line bg-ink-4 px-3 py-2 text-[0.7rem] font-mono text-bone">
+            <div>
+              auth user exists:{" "}
+              <span className={diagState.authUserExists ? "text-jade" : "text-blood"}>
+                {String(diagState.authUserExists)}
+              </span>
+            </div>
+            <div>auth user id: {diagState.authUserId ?? "—"}</div>
+            <div>
+              email_confirmed_at:{" "}
+              <span className={diagState.emailConfirmedAt ? "text-jade" : "text-blood"}>
+                {diagState.emailConfirmedAt ?? "(null — NOT confirmed)"}
+              </span>
+            </div>
+            <div>
+              judge row exists:{" "}
+              <span className={diagState.hasJudgeRow ? "text-jade" : "text-blood"}>
+                {String(diagState.hasJudgeRow)}
+              </span>{" "}
+              · is_active: {String(diagState.isActive)}
+            </div>
+            <div>
+              sign-in result:{" "}
+              <span
+                className={
+                  diagState.signInResult === "success" ? "text-jade" : "text-blood"
+                }
+              >
+                {diagState.signInResult}
+              </span>
+            </div>
+            {diagState.signInError && (
+              <div className="text-blood">error: {diagState.signInError}</div>
+            )}
+          </div>
+        )}
+        {diagState && !diagState.ok && (
+          <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
+            {diagState.error}
           </div>
         )}
       </form>
