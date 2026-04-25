@@ -117,6 +117,44 @@ export async function removeJudge(judgeId: string) {
   revalidatePath("/admin");
 }
 
+// ── shared password for all judges (bypasses email rate limits) ──
+export async function setSharedJudgePassword(
+  _: unknown,
+  form: FormData,
+): Promise<
+  | { ok: true; updated: number; failed: number }
+  | { ok: false; error: string }
+> {
+  if (!(await isAdminSignedIn())) throw new Error("Not authorized");
+  const password = String(form.get("password") ?? "").trim();
+  if (password.length < 6) {
+    return { ok: false, error: "Password must be at least 6 characters" };
+  }
+  const admin = createAdminClient();
+  const { data: judges, error } = await admin
+    .from("judges")
+    .select("auth_user_id")
+    .eq("is_active", true);
+  if (error) return { ok: false, error: error.message };
+
+  let updated = 0;
+  let failed = 0;
+  for (const j of judges ?? []) {
+    if (!j.auth_user_id) {
+      failed++;
+      continue;
+    }
+    const { error: updErr } = await admin.auth.admin.updateUserById(
+      j.auth_user_id,
+      { password },
+    );
+    if (updErr) failed++;
+    else updated++;
+  }
+  revalidatePath("/admin");
+  return { ok: true, updated, failed };
+}
+
 // ── CSV import ───────────────────────────────────────────────────
 const TRACKS = new Set([
   "AI for Coding",

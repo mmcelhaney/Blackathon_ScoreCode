@@ -8,6 +8,7 @@ import {
   importCsv,
   removeJudge,
   setPhase,
+  setSharedJudgePassword,
   signOutAdmin,
   toggleHideSubmission,
 } from "./actions";
@@ -319,6 +320,13 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
   } | null>(null);
   const [pending, start] = useTransition();
 
+  const [pwdState, setPwdState] = useState<
+    | { ok: true; updated: number; failed: number }
+    | { ok: false; error: string }
+    | null
+  >(null);
+  const [pwdPending, pwdStart] = useTransition();
+
   function onAdd(role: "judge" | "mentor", formId: string) {
     return (fd: FormData) => {
       fd.set("role", role);
@@ -330,11 +338,71 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
     };
   }
 
+  function onSetPassword(fd: FormData) {
+    pwdStart(async () => {
+      const r = await setSharedJudgePassword(null, fd);
+      setPwdState(r);
+      if (r.ok) {
+        (document.getElementById("pwd-form") as HTMLFormElement)?.reset();
+      }
+    });
+  }
+
   const justJudges = judges.filter((j) => (j.role ?? "judge") === "judge");
   const mentors = judges.filter((j) => j.role === "mentor");
 
   return (
     <div className="space-y-6">
+      {/* Shared Password — bypass email rate limits */}
+      <form
+        id="pwd-form"
+        action={onSetPassword}
+        className="card space-y-3 border-l-4 border-l-gold"
+      >
+        <div className="flex items-baseline justify-between">
+          <div className="pill-gold">Shared Sign-In Password</div>
+          <span className="text-[0.65rem] uppercase tracking-wider text-dust">
+            Bypasses magic-link emails
+          </span>
+        </div>
+        <p className="text-xs text-dust">
+          Sets one password on every <strong className="text-bone">active</strong>{" "}
+          judge and mentor. They sign in at <span className="text-gold">/judge</span>{" "}
+          with their email + this password — no email is sent. Share the
+          password directly with them (Slack/text). You can re-run this any
+          time to rotate the password.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[220px]">
+            <label className="field-label">Password (min 6 chars)</label>
+            <input
+              name="password"
+              type="text"
+              required
+              minLength={6}
+              autoComplete="off"
+              className="field-input mt-1"
+              placeholder="e.g. blackathon2026"
+            />
+          </div>
+          <button className="btn-gold" disabled={pwdPending}>
+            {pwdPending ? "Applying…" : "🔐 Set & Apply"}
+          </button>
+        </div>
+        {pwdState && pwdState.ok && (
+          <div className="rounded-md border border-jade/60 bg-jade/10 px-3 py-2 text-xs text-jade">
+            ✓ Updated {pwdState.updated} user{pwdState.updated === 1 ? "" : "s"}
+            {pwdState.failed > 0 && ` · ${pwdState.failed} failed`}. Share
+            the password now — it's set.
+          </div>
+        )}
+        {pwdState && !pwdState.ok && (
+          <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
+            {pwdState.error}
+          </div>
+        )}
+      </form>
+
       {/* Judges */}
       <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
         <form
