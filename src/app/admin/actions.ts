@@ -177,7 +177,7 @@ export async function setSharedJudgePassword(
   _: unknown,
   form: FormData,
 ): Promise<
-  | { ok: true; updated: number; failed: number }
+  | { ok: true; updated: number; failed: number; details: string[] }
   | { ok: false; error: string }
 > {
   if (!(await isAdminSignedIn())) throw new Error("Not authorized");
@@ -188,26 +188,64 @@ export async function setSharedJudgePassword(
   const admin = createAdminClient();
   const { data: judges, error } = await admin
     .from("judges")
-    .select("auth_user_id")
+    .select("id, auth_user_id, email")
     .eq("is_active", true);
   if (error) return { ok: false, error: error.message };
 
   let updated = 0;
   let failed = 0;
+  const details: string[] = [];
+
   for (const j of judges ?? []) {
-    if (!j.auth_user_id) {
+    const email = String(j.email ?? "").toLowerCase();
+    if (!email) {
       failed++;
+      details.push(`(no email on judge ${j.id})`);
       continue;
     }
-    const { error: updErr } = await admin.auth.admin.updateUserById(
-      j.auth_user_id,
-      { password },
-    );
-    if (updErr) failed++;
-    else updated++;
+
+    // Look up auth user by email — more reliable than the stored
+    // auth_user_id, which can be null or stale.
+    let authId = await findAuthUserIdByEmail(admin, email);
+
+    // If still no auth user, create one
+    if (!authId) {
+      const { data: created, error: createErr } =
+        await admin.auth.admin.createUser({
+          email,
+          email_confirm: true,
+          password,
+        });
+      if (createErr || !created?.user?.id) {
+        failed++;
+        details.push(`${email}: couldn't create auth user (${createErr?.message ?? "unknown"})`);
+        continue;
+      }
+      authId = created.user.id;
+    } else {
+      // Existing auth user — explicitly set password AND re-confirm email
+      const { error: updErr } = await admin.auth.admin.updateUserById(authId, {
+        password,
+        email_confirm: true,
+      });
+      if (updErr) {
+        failed++;
+        details.push(`${email}: ${updErr.message}`);
+        continue;
+      }
+    }
+
+    // Make sure judges.auth_user_id matches what's in auth.users
+    if (j.auth_user_id !== authId) {
+      await admin
+        .from("judges")
+        .update({ auth_user_id: authId })
+        .eq("id", j.id);
+    }
+    updated++;
   }
   revalidatePath("/admin");
-  return { ok: true, updated, failed };
+  return { ok: true, updated, failed, details };
 }
 
 // ── one-off test account with a known password ──────────────────

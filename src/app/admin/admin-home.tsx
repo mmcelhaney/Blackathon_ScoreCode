@@ -354,7 +354,7 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
   const [pending, start] = useTransition();
 
   const [pwdState, setPwdState] = useState<
-    | { ok: true; updated: number; failed: number }
+    | { ok: true; updated: number; failed: number; details: string[] }
     | { ok: false; error: string }
     | null
   >(null);
@@ -440,10 +440,24 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
           </button>
         </div>
         {pwdState && pwdState.ok && (
-          <div className="rounded-md border border-jade/60 bg-jade/10 px-3 py-2 text-xs text-jade">
-            ✓ Updated {pwdState.updated} user{pwdState.updated === 1 ? "" : "s"}
-            {pwdState.failed > 0 && ` · ${pwdState.failed} failed`}. Share
-            the password now — it's set.
+          <div className="space-y-2">
+            <div className="rounded-md border border-jade/60 bg-jade/10 px-3 py-2 text-xs text-jade">
+              ✓ Updated {pwdState.updated} user{pwdState.updated === 1 ? "" : "s"}
+              {pwdState.failed > 0 && ` · ${pwdState.failed} failed`}. Share
+              the password now — it's set.
+            </div>
+            {pwdState.failed > 0 && pwdState.details.length > 0 && (
+              <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-[0.7rem] text-blood">
+                <div className="mb-1 font-semibold uppercase tracking-wider">
+                  Failures:
+                </div>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  {pwdState.details.map((d, i) => (
+                    <li key={i}>{d}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
         {pwdState && !pwdState.ok && (
