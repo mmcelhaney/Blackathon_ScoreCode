@@ -36,11 +36,16 @@ export async function signOutAdmin() {
 export async function setPhase(phase: "submissions" | "judging" | "results") {
   if (!(await isAdminSignedIn())) throw new Error("Not authorized");
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("event_state")
     .update({ phase, closed_at: phase === "results" ? new Date().toISOString() : null })
     .eq("id", 1);
+  if (error) {
+    console.error("setPhase: update failed", error);
+    throw new Error(error.message);
+  }
   revalidatePath("/", "layout");
+  revalidatePath("/admin");
 }
 
 // ── judge / mentor roster ────────────────────────────────────────

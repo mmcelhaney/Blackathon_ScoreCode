@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   addJudge,
   computeAndLockTop6,
@@ -165,6 +166,26 @@ function PhasePanel({
   ).length;
   void progress;
 
+  const [phaseErr, setPhaseErr] = useState<string | null>(null);
+  const router = useRouter();
+
+  function handlePhase(p: Phase) {
+    setPhaseErr(null);
+    start(async () => {
+      try {
+        await setPhase(p);
+        router.refresh();
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setPhaseErr(
+          msg.toLowerCase().includes("not authorized")
+            ? "Admin session expired — please sign in again."
+            : `Couldn't switch phase: ${msg}`,
+        );
+      }
+    });
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
@@ -174,7 +195,7 @@ function PhasePanel({
             {(["submissions", "judging", "results"] as const).map((p) => (
               <button
                 key={p}
-                onClick={() => start(() => setPhase(p))}
+                onClick={() => handlePhase(p)}
                 disabled={pending || p === phase}
                 className={`flex-1 rounded-md border px-3 py-4 font-cond uppercase tracking-wider transition ${
                   phase === p
@@ -186,6 +207,11 @@ function PhasePanel({
               </button>
             ))}
           </div>
+          {phaseErr && (
+            <div className="mb-3 rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
+              {phaseErr}
+            </div>
+          )}
           <p className="text-xs text-dust">
             Changing to <span className="text-gold">judging</span> locks
             submissions. Changing to <span className="text-gold">results</span>{" "}
