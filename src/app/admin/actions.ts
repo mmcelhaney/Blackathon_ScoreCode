@@ -35,25 +35,67 @@ export async function signOutAdmin() {
 // ── phase toggle ─────────────────────────────────────────────────
 export async function setPhase(
   phase: "submissions" | "judging" | "results",
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; persisted: string; rowsAffected: number }
+  | { ok: false; error: string }
+> {
   if (!(await isAdminSignedIn())) {
     return { ok: false, error: "Admin session expired — please sign in again." };
   }
   const admin = createAdminClient();
-  const { error } = await admin
+
+  // Update + return the affected row(s) so we can verify the write actually
+  // persisted (not silently no-op'd by RLS or row mismatch).
+  const { data: updated, error } = await admin
     .from("event_state")
     .update({
       phase,
       closed_at: phase === "results" ? new Date().toISOString() : null,
     })
-    .eq("id", 1);
+    .eq("id", 1)
+    .select("phase");
+
   if (error) {
     console.error("setPhase: update failed", error);
     return { ok: false, error: `DB error: ${error.message}` };
   }
+
+  const rowsAffected = updated?.length ?? 0;
+  if (rowsAffected === 0) {
+    // No row with id=1 — try to insert one. The schema has `default 1` and
+    // a check constraint, so this single-row table may need bootstrapping
+    // in some environments.
+    const { error: insErr } = await admin.from("event_state").upsert(
+      {
+        id: 1,
+        phase,
+        closed_at: phase === "results" ? new Date().toISOString() : null,
+      },
+      { onConflict: "id" },
+    );
+    if (insErr) {
+      console.error("setPhase: upsert failed", insErr);
+      return {
+        ok: false,
+        error: `Update affected 0 rows; upsert also failed: ${insErr.message}`,
+      };
+    }
+  }
+
+  // Read back to confirm what's actually in the DB now.
+  const { data: after } = await admin
+    .from("event_state")
+    .select("phase")
+    .eq("id", 1)
+    .maybeSingle();
+
   revalidatePath("/", "layout");
   revalidatePath("/admin");
-  return { ok: true };
+  return {
+    ok: true,
+    persisted: String(after?.phase ?? "(unknown)"),
+    rowsAffected,
+  };
 }
 
 // ── judge / mentor roster ────────────────────────────────────────

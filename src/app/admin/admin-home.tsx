@@ -176,6 +176,12 @@ function PhasePanel({
           setPhaseErr(r.error);
           return;
         }
+        if (r.persisted !== p) {
+          setPhaseErr(
+            `DB returned phase="${r.persisted}" after writing "${p}" (rows affected: ${r.rowsAffected}). Use Supabase SQL editor: UPDATE public.event_state SET phase='${p}' WHERE id=1;`,
+          );
+          return;
+        }
         // Hard reload — guarantees the phase pill updates everywhere even if
         // RSC payload caching gets in the way.
         window.location.reload();
