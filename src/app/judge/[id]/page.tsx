@@ -3,8 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { Breadcrumbs, HeaderBar, PageShell } from "@/components/shell";
 import { getPhase } from "@/lib/phase";
 import { isAdminSignedIn } from "@/app/admin/auth";
+import { getJudgeByAuthUser } from "@/lib/judge-lookup";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { safeHref } from "@/lib/url";
 import { ScoreForm } from "./score-form";
 
 export const dynamic = "force-dynamic";
@@ -22,16 +24,11 @@ export default async function JudgeSubmissionPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Determine viewer: judge, admin, or kick out
-  let judge: { id: string; name: string; is_active: boolean } | null = null;
-  if (user) {
-    const { data } = await supabase
-      .from("judges")
-      .select("id, name, is_active")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    judge = data?.is_active ? data : null;
-  }
+  // Determine viewer: judge, mentor, admin, or kick out
+  const judgeRow = user ? await getJudgeByAuthUser(supabase, user.id) : null;
+  const judge = judgeRow?.is_active ? judgeRow : null;
+  const isMentor = judge?.role === "mentor";
+  const isJudge = !!judge && !isMentor;
   const adminOnly = !judge && (await isAdminSignedIn());
   if (!judge && !adminOnly) redirect("/judge");
 
@@ -58,14 +55,14 @@ export default async function JudgeSubmissionPage({
   }
   if (!sub) notFound();
 
-  const existing = judge
+  const existing = isJudge
     ? (
         await supabase
           .from("scores")
           .select(
             "idea, creativity, build_quality, ux, presentation, impact, comment",
           )
-          .eq("judge_id", judge.id)
+          .eq("judge_id", judge!.id)
           .eq("submission_id", id)
           .maybeSingle()
       ).data
@@ -140,7 +137,7 @@ export default async function JudgeSubmissionPage({
         </div>
 
         {/* Judge guidance — only shown during judging phase */}
-        {judge && phase === "judging" && (
+        {isJudge && phase === "judging" && (
           <div className="card mb-6 border-l-4 border-l-gold">
             <div className="mb-2 flex items-center gap-2">
               <span className="pill-gold">How to Score</span>
@@ -212,64 +209,82 @@ export default async function JudgeSubmissionPage({
                 </p>
               </div>
             )}
-            <div className="flex flex-wrap gap-2 pt-2">
-              {sub.demo_video_url && (
-                <a
-                  href={String(sub.demo_video_url)}
-                  target="_blank"
-                  className="btn-gold text-xs"
-                >
-                  ▣ Watch Demo Video First
-                </a>
-              )}
-              {sub.github_url && (
-                <a
-                  href={String(sub.github_url)}
-                  target="_blank"
-                  className="btn text-xs"
-                >
-                  ⚙ GitHub
-                </a>
-              )}
-              {sub.live_demo_url && (
-                <a
-                  href={String(sub.live_demo_url)}
-                  target="_blank"
-                  className="btn text-xs"
-                >
-                  ▶ Live Demo
-                </a>
-              )}
-              {sub.linkedin_post_url && (
-                <a
-                  href={String(sub.linkedin_post_url)}
-                  target="_blank"
-                  className="btn text-xs"
-                >
-                  in Announcement
-                </a>
-              )}
-            </div>
+            {(() => {
+              const demoHref = safeHref(sub.demo_video_url);
+              const githubHref = safeHref(sub.github_url);
+              const liveHref = safeHref(sub.live_demo_url);
+              const linkedinHref = safeHref(sub.linkedin_post_url);
+              return (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {demoHref && (
+                    <a
+                      href={demoHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-gold text-xs"
+                    >
+                      ▣ Watch Demo Video First
+                    </a>
+                  )}
+                  {githubHref && (
+                    <a
+                      href={githubHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn text-xs"
+                    >
+                      ⚙ GitHub
+                    </a>
+                  )}
+                  {liveHref && (
+                    <a
+                      href={liveHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn text-xs"
+                    >
+                      ▶ Live Demo
+                    </a>
+                  )}
+                  {linkedinHref && (
+                    <a
+                      href={linkedinHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn text-xs"
+                    >
+                      in Announcement
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
-          {judge && phase === "judging" ? (
+          {isJudge && phase === "judging" ? (
             <ScoreForm
               submissionId={String(sub.id)}
-              judgeId={judge.id}
+              judgeId={judge!.id}
               existing={existing ?? null}
             />
           ) : (
             <div className="space-y-4">
               <div className="card h-fit">
                 <div className="pill mb-2">
-                  {adminOnly ? "Admin View" : "Scoring closed"}
+                  {isMentor
+                    ? "Mentor · View Only"
+                    : adminOnly
+                      ? "Admin View"
+                      : "Scoring closed"}
                 </div>
                 <p className="text-sm text-dust">
-                  {adminOnly
-                    ? "You're viewing this as the admin. Use this view during the results phase to review a top-6 candidate before assigning 1st–3rd place."
-                    : phase === "results"
-                      ? "Voting is closed. Review the judges' notes below to help decide 1st–3rd."
-                      : "Scoring is only available during the judging phase."}
+                  {isMentor
+                    ? "Mentors get full read access to every submission to advise teams and the program — but they don't vote. The top-6 is decided by judges only."
+                    : adminOnly
+                      ? "You're viewing this as the admin. Use this view during the results phase to review a top-6 candidate before assigning 1st–3rd place."
+                      : phase === "results"
+                        ? "Voting is closed. Review the judges' notes below to help decide 1st–3rd."
+                        : "Scoring is only available during the judging phase."}
                 </p>
               </div>
 

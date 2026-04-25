@@ -279,20 +279,24 @@ export function SubmitForm() {
               </select>
             </div>
             <div>
-              <label className="field-label">Project Category</label>
+              <label className="field-label">Project Category *</label>
               <input
                 name="project_category"
+                required
                 placeholder="AI for Coding, Mental Health, …"
                 className="field-input mt-1"
               />
+              {err("project_category")}
             </div>
             <div>
-              <label className="field-label">Technologies Used</label>
+              <label className="field-label">Technologies Used *</label>
               <input
                 name="technologies_used"
+                required
                 placeholder="Python, React, OpenAI API, …"
                 className="field-input mt-1"
               />
+              {err("technologies_used")}
             </div>
           </div>
 
@@ -311,9 +315,10 @@ export function SubmitForm() {
           </div>
 
           <div>
-            <label className="field-label">One-Line Summary (280 chars)</label>
+            <label className="field-label">One-Line Summary * (280 chars)</label>
             <input
               name="project_description_summary"
+              required
               maxLength={280}
               className="field-input mt-1"
             />
@@ -396,10 +401,51 @@ export function SubmitForm() {
             <span className="font-semibold text-gold">Required.</span> You, the
             submitter, must post and follow on LinkedIn announcing your
             participation in the Blackathon, tagging all partners:{" "}
-            <strong className="text-bone">NSBE SFBA</strong>,{" "}
-            <strong className="text-bone">Algorythm</strong>,{" "}
-            <strong className="text-bone">BlackWPT</strong>, and{" "}
-            <strong className="text-bone">Black Women in Tech</strong>.
+            <a
+              href="https://www.linkedin.com/company/nsbe-sf-bay-area-professionals"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-bone underline decoration-gold/60 hover:text-gold"
+            >
+              NSBE SFBA
+            </a>
+            ,{" "}
+            <a
+              href="https://www.linkedin.com/groups/8873861/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-bone underline decoration-gold/60 hover:text-gold"
+            >
+              Algorythm
+            </a>
+            ,{" "}
+            <a
+              href="https://www.linkedin.com/company/blackwpt"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-bone underline decoration-gold/60 hover:text-gold"
+            >
+              BlackWPT
+            </a>
+            ,{" "}
+            <a
+              href="https://www.linkedin.com/company/black-women-in-technology"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-bone underline decoration-gold/60 hover:text-gold"
+            >
+              Black Women in Tech
+            </a>
+            , and{" "}
+            <a
+              href="https://www.linkedin.com/company/-dev-color"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-bone underline decoration-gold/60 hover:text-gold"
+            >
+              /dev/color
+            </a>
+            .
           </div>
 
           <div>

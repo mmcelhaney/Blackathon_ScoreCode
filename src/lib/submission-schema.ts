@@ -42,15 +42,23 @@ export const submissionSchema = z.object({
   // project
   project_name: z.string().trim().min(2, "Project name required"),
   challenge_track: z.string().trim().default(""),
-  project_category: z.string().trim().default(""),
+  project_category: z.string().trim().min(1, "Project category is required"),
   project_description: z.string().trim().min(30, "Please write at least 30 characters"),
-  project_description_summary: z.string().trim().max(280, "Keep it under 280 chars").default(""),
-  technologies_used: z.string().trim().default(""),
+  project_description_summary: z
+    .string()
+    .trim()
+    .min(1, "One-line summary is required")
+    .max(280, "Keep it under 280 chars"),
+  technologies_used: z.string().trim().min(1, "Technologies used is required"),
 
   github_url: url.optional().default(""),
   live_demo_url: url.optional().default(""),
   demo_video_url: url.optional().default(""),
-  linkedin_post_url: url.optional().default(""),
+  linkedin_post_url: z
+    .string()
+    .trim()
+    .min(1, "LinkedIn post URL is required")
+    .url("Must be a valid URL"),
   all_members_in_video: z.string().trim().default(""),
   team_size: z.coerce.number().int().min(1).max(10).default(1),
 });

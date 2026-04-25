@@ -19,6 +19,7 @@ type Judge = {
   name: string;
   email: string;
   is_active: boolean;
+  role: "judge" | "mentor" | null;
   created_at: string;
 };
 
@@ -131,7 +132,12 @@ function PhasePanel({
   judgeProgress: JudgeProgress[];
 }) {
   const [pending, start] = useTransition();
-  const activeJudges = judges.filter((j) => j.is_active).length;
+  const activeJudges = judges.filter(
+    (j) => j.is_active && (j.role ?? "judge") === "judge",
+  ).length;
+  const activeMentors = judges.filter(
+    (j) => j.is_active && j.role === "mentor",
+  ).length;
   const visibleSubs = submissions.filter(
     (s) => !s.hidden_from_judges && s.is_submission_complete,
   );
@@ -198,8 +204,9 @@ function PhasePanel({
               style={{ width: `${pct}%` }}
             />
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
             <Stat label="Judges" v={activeJudges} />
+            <Stat label="Mentors" v={activeMentors} />
             <Stat label="Submissions" v={visibleSubs.length} />
           </div>
         </div>
@@ -305,73 +312,152 @@ function PhasePanel({
 }
 
 function JudgesPanel({ judges }: { judges: Judge[] }) {
-  const [state, setState] = useState<{ ok?: boolean; error?: string } | null>(null);
+  const [state, setState] = useState<{
+    ok?: boolean;
+    error?: string;
+    role?: "judge" | "mentor";
+  } | null>(null);
   const [pending, start] = useTransition();
 
-  async function onAdd(fd: FormData) {
-    start(async () => {
-      const r = await addJudge(null, fd);
-      setState(r);
-      if (r.ok) (document.getElementById("judge-form") as HTMLFormElement)?.reset();
-    });
+  function onAdd(role: "judge" | "mentor", formId: string) {
+    return (fd: FormData) => {
+      fd.set("role", role);
+      start(async () => {
+        const r = await addJudge(null, fd);
+        setState({ ...r, role });
+        if (r.ok) (document.getElementById(formId) as HTMLFormElement)?.reset();
+      });
+    };
   }
 
-  return (
-    <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
-      <form
-        id="judge-form"
-        action={onAdd}
-        className="card h-fit space-y-3"
-      >
-        <div className="pill-gold">Add Judge</div>
-        <div>
-          <label className="field-label">Name</label>
-          <input name="name" required className="field-input mt-1" />
-        </div>
-        <div>
-          <label className="field-label">Email</label>
-          <input name="email" type="email" required className="field-input mt-1" />
-        </div>
-        {state && !state.ok && state.error && (
-          <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
-            {state.error}
-          </div>
-        )}
-        <button className="btn-gold w-full" disabled={pending}>
-          {pending ? "Adding…" : "+ Add Judge"}
-        </button>
-        <p className="text-[0.7rem] text-dust">
-          The judge will sign in at <span className="text-gold">/judge</span> with
-          this email and get a magic link — no password needed.
-        </p>
-      </form>
+  const justJudges = judges.filter((j) => (j.role ?? "judge") === "judge");
+  const mentors = judges.filter((j) => j.role === "mentor");
 
-      <div className="card">
-        <div className="field-label mb-3">Roster ({judges.filter((j) => j.is_active).length})</div>
-        <ul className="divide-y divide-line">
-          {judges.map((j) => (
-            <li key={j.id} className="flex items-center justify-between py-2">
-              <div>
-                <div className="font-semibold">{j.name}</div>
-                <div className="text-xs text-dust">{j.email}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {j.is_active ? <span className="pill-gold">Active</span> : <span className="pill">Inactive</span>}
-                {j.is_active && (
-                  <button
-                    onClick={() => removeJudge(j.id)}
-                    className="pill hover:border-blood hover:text-blood"
-                  >
-                    Deactivate
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-          {judges.length === 0 && (
-            <li className="py-6 text-center text-dust">No judges yet. Add some above.</li>
+  return (
+    <div className="space-y-6">
+      {/* Judges */}
+      <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
+        <form
+          id="judge-form"
+          action={onAdd("judge", "judge-form")}
+          className="card h-fit space-y-3"
+        >
+          <div className="pill-gold">Add Judge</div>
+          <div>
+            <label className="field-label">Name</label>
+            <input name="name" required className="field-input mt-1" />
+          </div>
+          <div>
+            <label className="field-label">Email</label>
+            <input name="email" type="email" required className="field-input mt-1" />
+          </div>
+          {state?.role === "judge" && !state.ok && state.error && (
+            <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
+              {state.error}
+            </div>
           )}
-        </ul>
+          <button className="btn-gold w-full" disabled={pending}>
+            {pending ? "Adding…" : "+ Add Judge"}
+          </button>
+          <p className="text-[0.7rem] text-dust">
+            Judges sign in at <span className="text-gold">/judge</span>, score
+            submissions, and shape the top-6.
+          </p>
+        </form>
+
+        <div className="card">
+          <div className="field-label mb-3">
+            Judges ({justJudges.filter((j) => j.is_active).length})
+          </div>
+          <ul className="divide-y divide-line">
+            {justJudges.map((j) => (
+              <li key={j.id} className="flex items-center justify-between py-2">
+                <div>
+                  <div className="font-semibold">{j.name}</div>
+                  <div className="text-xs text-dust">{j.email}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {j.is_active ? <span className="pill-gold">Active</span> : <span className="pill">Inactive</span>}
+                  {j.is_active && (
+                    <button
+                      onClick={() => removeJudge(j.id)}
+                      className="pill hover:border-blood hover:text-blood"
+                    >
+                      Deactivate
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+            {justJudges.length === 0 && (
+              <li className="py-6 text-center text-dust">No judges yet. Add some on the left.</li>
+            )}
+          </ul>
+        </div>
+      </div>
+
+      {/* Mentors */}
+      <div className="grid gap-4 md:grid-cols-[1fr_2fr]">
+        <form
+          id="mentor-form"
+          action={onAdd("mentor", "mentor-form")}
+          className="card h-fit space-y-3"
+        >
+          <div className="pill">Add Mentor</div>
+          <div>
+            <label className="field-label">Name</label>
+            <input name="name" required className="field-input mt-1" />
+          </div>
+          <div>
+            <label className="field-label">Email</label>
+            <input name="email" type="email" required className="field-input mt-1" />
+          </div>
+          {state?.role === "mentor" && !state.ok && state.error && (
+            <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
+              {state.error}
+            </div>
+          )}
+          <button className="btn w-full" disabled={pending}>
+            {pending ? "Adding…" : "+ Add Mentor"}
+          </button>
+          <p className="text-[0.7rem] text-dust">
+            Mentors sign in at <span className="text-gold">/judge</span> and can
+            view every submission, but cannot vote. Use this for advisors,
+            partners, and observers.
+          </p>
+        </form>
+
+        <div className="card">
+          <div className="field-label mb-3">
+            Mentors ({mentors.filter((j) => j.is_active).length})
+          </div>
+          <ul className="divide-y divide-line">
+            {mentors.map((j) => (
+              <li key={j.id} className="flex items-center justify-between py-2">
+                <div>
+                  <div className="font-semibold">{j.name}</div>
+                  <div className="text-xs text-dust">{j.email}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {j.is_active ? <span className="pill-gold">Active</span> : <span className="pill">Inactive</span>}
+                  {j.is_active && (
+                    <button
+                      onClick={() => removeJudge(j.id)}
+                      className="pill hover:border-blood hover:text-blood"
+                    >
+                      Deactivate
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+            {mentors.length === 0 && (
+              <li className="py-6 text-center text-dust">
+                No mentors yet. Add advisors or partners on the left.
+              </li>
+            )}
+          </ul>
+        </div>
       </div>
     </div>
   );

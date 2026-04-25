@@ -2,7 +2,6 @@
 
 import { submissionSchema } from "@/lib/submission-schema";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 
 export type SubmitResult =
   | { ok: true; id: string }
@@ -12,14 +11,22 @@ export async function submitProject(
   _prev: SubmitResult | null,
   form: FormData,
 ): Promise<SubmitResult> {
-  // Phase gate
-  const supa = await createClient();
-  const { data: state } = await supa
+  // Phase gate — use the service-role client so this can't drift from what
+  // the admin panel sees due to RLS or auth-context quirks. Match the admin
+  // panel's fallback: a missing/null phase defaults to "submissions" (which
+  // is also the table-level default).
+  const admin = createAdminClient();
+  const { data: state, error: stateError } = await admin
     .from("event_state")
     .select("phase")
     .eq("id", 1)
     .maybeSingle();
-  if (state?.phase !== "submissions") {
+  if (stateError) {
+    console.error("submitProject: failed to read event_state", stateError);
+  }
+  const rawPhase = (state?.phase ?? "").toString().trim().toLowerCase();
+  const phase = rawPhase || "submissions";
+  if (phase !== "submissions") {
     return {
       ok: false,
       error: "Submissions are closed. Contact the organizers if you believe this is a mistake.",
@@ -39,7 +46,6 @@ export async function submitProject(
 
   // Service-role insert — bypasses the public-insert RLS policy (which
   // would also work, but we want consistent inserts and controlled columns).
-  const admin = createAdminClient();
   const { data, error } = await admin
     .from("submissions")
     .insert({

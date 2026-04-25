@@ -56,16 +56,31 @@ export default async function AdminPage() {
 
 async function AdminContent() {
   const admin = createAdminClient();
+  // Try the new schema first (with `role`); fall back without `role` if the
+  // 0002_mentors migration hasn't been applied yet.
+  async function loadJudges() {
+    const withRole = await admin
+      .from("judges")
+      .select("id, name, email, is_active, role, created_at")
+      .order("name");
+    if (!withRole.error) return withRole.data ?? [];
+    const fallback = await admin
+      .from("judges")
+      .select("id, name, email, is_active, created_at")
+      .order("name");
+    return (fallback.data ?? []).map((j) => ({ ...j, role: "judge" as const }));
+  }
+
   const [
     { data: state },
-    { data: judges },
+    judgesData,
     { data: subs },
     { data: progress },
     { data: scores },
     { data: lock },
   ] = await Promise.all([
     admin.from("event_state").select("phase, updated_at").eq("id", 1).maybeSingle(),
-    admin.from("judges").select("id, name, email, is_active, created_at").order("name"),
+    loadJudges(),
     admin
       .from("submissions")
       .select(
@@ -76,6 +91,7 @@ async function AdminContent() {
     admin.from("scores").select("judge_id, submission_id, updated_at"),
     admin.from("results_lock").select("seed, top6, locked_at").eq("id", 1).maybeSingle(),
   ]);
+  const judges = judgesData;
 
   // Build per-judge voting progress
   const scoresByJudge = new Map<
@@ -95,18 +111,22 @@ async function AdminContent() {
     (s) => !s.hidden_from_judges && s.is_submission_complete,
   ).length;
 
-  const judgeProgress = (judges ?? []).map((j) => {
-    const stats = scoresByJudge.get(j.id);
-    return {
-      id: j.id,
-      name: j.name,
-      email: j.email,
-      is_active: j.is_active,
-      scored: stats?.count ?? 0,
-      total: visibleCount,
-      last_scored_at: stats?.lastAt ?? null,
-    };
-  });
+  // Mentors are read-only viewers — they don't vote, so exclude them from
+  // the voting-progress math.
+  const judgeProgress = (judges ?? [])
+    .filter((j) => (j.role ?? "judge") === "judge")
+    .map((j) => {
+      const stats = scoresByJudge.get(j.id);
+      return {
+        id: j.id,
+        name: j.name,
+        email: j.email,
+        is_active: j.is_active,
+        scored: stats?.count ?? 0,
+        total: visibleCount,
+        last_scored_at: stats?.lastAt ?? null,
+      };
+    });
 
   return (
     <AdminHome

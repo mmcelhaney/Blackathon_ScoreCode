@@ -18,10 +18,12 @@ export function SubmissionList({
   rows,
   scoredIds,
   canScore,
+  mentorMode = false,
 }: {
   rows: SubRow[];
   scoredIds: string[];
   canScore: boolean;
+  mentorMode?: boolean;
 }) {
   const scored = useMemo(() => new Set(scoredIds), [scoredIds]);
   const [q, setQ] = useState("");
@@ -37,8 +39,8 @@ export function SubmissionList({
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return rows.filter((r) => {
-      if (filter === "pending" && scored.has(r.id)) return false;
-      if (filter === "scored" && !scored.has(r.id)) return false;
+      if (!mentorMode && filter === "pending" && scored.has(r.id)) return false;
+      if (!mentorMode && filter === "scored" && !scored.has(r.id)) return false;
       if (track !== "all" && r.challenge_track !== track) return false;
       if (!needle) return true;
       return (
@@ -47,7 +49,7 @@ export function SubmissionList({
         (r.project_description_summary ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [rows, scored, q, filter, track]);
+  }, [rows, scored, q, filter, track, mentorMode]);
 
   const pendingCount = rows.length - scored.size;
 
@@ -83,27 +85,29 @@ export function SubmissionList({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {(
-            [
-              ["all", `All (${rows.length})`],
-              ["pending", `Pending (${pendingCount})`],
-              ["scored", `Scored (${scored.size})`],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={`rounded-full border px-3 py-1 font-cond text-xs font-semibold uppercase tracking-wider transition ${
-                filter === key
-                  ? "border-gold bg-gold/15 text-gold"
-                  : "border-line bg-ink-4 text-dust hover:border-gold/50"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {!mentorMode && (
+          <div className="flex flex-wrap items-center gap-2">
+            {(
+              [
+                ["all", `All (${rows.length})`],
+                ["pending", `Pending (${pendingCount})`],
+                ["scored", `Scored (${scored.size})`],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                className={`rounded-full border px-3 py-1 font-cond text-xs font-semibold uppercase tracking-wider transition ${
+                  filter === key
+                    ? "border-gold bg-gold/15 text-gold"
+                    : "border-line bg-ink-4 text-dust hover:border-gold/50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* List */}
@@ -129,7 +133,11 @@ export function SubmissionList({
                   <span
                     aria-hidden
                     className={`h-2 w-2 flex-shrink-0 rounded-full ${
-                      isDone ? "bg-jade" : "bg-blood/70"
+                      mentorMode
+                        ? "bg-dust/40"
+                        : isDone
+                          ? "bg-jade"
+                          : "bg-blood/70"
                     }`}
                   />
 
@@ -163,18 +171,22 @@ export function SubmissionList({
                   {/* Status pill */}
                   <span
                     className={`whitespace-nowrap rounded-full border px-3 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wider ${
-                      isDone
-                        ? "border-jade/60 bg-jade/10 text-jade"
-                        : canScore
-                          ? "border-gold/60 bg-gold/10 text-gold"
-                          : "border-line bg-ink-4 text-dust"
+                      mentorMode
+                        ? "border-line bg-ink-4 text-dust"
+                        : isDone
+                          ? "border-jade/60 bg-jade/10 text-jade"
+                          : canScore
+                            ? "border-gold/60 bg-gold/10 text-gold"
+                            : "border-line bg-ink-4 text-dust"
                     }`}
                   >
-                    {isDone
-                      ? "✓ Scored"
-                      : canScore
-                        ? "Score →"
-                        : "Pending"}
+                    {mentorMode
+                      ? "View →"
+                      : isDone
+                        ? "✓ Scored"
+                        : canScore
+                          ? "Score →"
+                          : "Pending"}
                   </span>
                 </Link>
               </li>

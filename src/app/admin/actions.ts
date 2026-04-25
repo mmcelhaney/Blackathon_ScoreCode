@@ -43,11 +43,13 @@ export async function setPhase(phase: "submissions" | "judging" | "results") {
   revalidatePath("/", "layout");
 }
 
-// ── judge roster ─────────────────────────────────────────────────
+// ── judge / mentor roster ────────────────────────────────────────
 export async function addJudge(_: unknown, form: FormData) {
   if (!(await isAdminSignedIn())) throw new Error("Not authorized");
   const name = String(form.get("name") ?? "").trim();
   const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const roleRaw = String(form.get("role") ?? "judge").trim().toLowerCase();
+  const role = roleRaw === "mentor" ? "mentor" : "judge";
   if (!name || !email) return { ok: false as const, error: "Name and email required" };
 
   const admin = createAdminClient();
@@ -63,7 +65,7 @@ export async function addJudge(_: unknown, form: FormData) {
     const { data: found } = await admin.auth.admin.listUsers();
     authUserId = found?.users.find((u) => u.email?.toLowerCase() === email)?.id;
     if (!authUserId)
-      return { ok: false as const, error: `Couldn't create judge: ${createErr.message}` };
+      return { ok: false as const, error: `Couldn't create ${role}: ${createErr.message}` };
   }
 
   const { error } = await admin.from("judges").upsert(
@@ -71,11 +73,39 @@ export async function addJudge(_: unknown, form: FormData) {
       auth_user_id: authUserId!,
       name,
       email,
+      role,
       is_active: true,
     },
     { onConflict: "email" },
   );
-  if (error) return { ok: false as const, error: error.message };
+  if (error) {
+    // Likely cause: 0002_mentors migration not applied yet, so `role` column
+    // doesn't exist. Fall back to inserting without `role` — but only if
+    // we're trying to add a regular judge. Mentors require the migration.
+    const isMissingColumn = /column .*role.* does not exist/i.test(error.message);
+    if (isMissingColumn && role === "judge") {
+      const retry = await admin.from("judges").upsert(
+        {
+          auth_user_id: authUserId!,
+          name,
+          email,
+          is_active: true,
+        },
+        { onConflict: "email" },
+      );
+      if (retry.error) return { ok: false as const, error: retry.error.message };
+      revalidatePath("/admin");
+      return { ok: true as const };
+    }
+    if (isMissingColumn && role === "mentor") {
+      return {
+        ok: false as const,
+        error:
+          "Mentors require the 0002_mentors migration. Run supabase/migrations/0002_mentors.sql in the Supabase SQL Editor first.",
+      };
+    }
+    return { ok: false as const, error: error.message };
+  }
   revalidatePath("/admin");
   return { ok: true as const };
 }
