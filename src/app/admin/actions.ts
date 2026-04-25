@@ -33,19 +33,27 @@ export async function signOutAdmin() {
 }
 
 // ── phase toggle ─────────────────────────────────────────────────
-export async function setPhase(phase: "submissions" | "judging" | "results") {
-  if (!(await isAdminSignedIn())) throw new Error("Not authorized");
+export async function setPhase(
+  phase: "submissions" | "judging" | "results",
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await isAdminSignedIn())) {
+    return { ok: false, error: "Admin session expired — please sign in again." };
+  }
   const admin = createAdminClient();
   const { error } = await admin
     .from("event_state")
-    .update({ phase, closed_at: phase === "results" ? new Date().toISOString() : null })
+    .update({
+      phase,
+      closed_at: phase === "results" ? new Date().toISOString() : null,
+    })
     .eq("id", 1);
   if (error) {
     console.error("setPhase: update failed", error);
-    throw new Error(error.message);
+    return { ok: false, error: `DB error: ${error.message}` };
   }
   revalidatePath("/", "layout");
   revalidatePath("/admin");
+  return { ok: true };
 }
 
 // ── judge / mentor roster ────────────────────────────────────────

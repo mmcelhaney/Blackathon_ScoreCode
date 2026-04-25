@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   addJudge,
   computeAndLockTop6,
@@ -167,21 +166,22 @@ function PhasePanel({
   void progress;
 
   const [phaseErr, setPhaseErr] = useState<string | null>(null);
-  const router = useRouter();
 
   function handlePhase(p: Phase) {
     setPhaseErr(null);
     start(async () => {
       try {
-        await setPhase(p);
-        router.refresh();
+        const r = await setPhase(p);
+        if (!r.ok) {
+          setPhaseErr(r.error);
+          return;
+        }
+        // Hard reload — guarantees the phase pill updates everywhere even if
+        // RSC payload caching gets in the way.
+        window.location.reload();
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        setPhaseErr(
-          msg.toLowerCase().includes("not authorized")
-            ? "Admin session expired — please sign in again."
-            : `Couldn't switch phase: ${msg}`,
-        );
+        setPhaseErr(`Couldn't switch phase: ${msg}`);
       }
     });
   }
