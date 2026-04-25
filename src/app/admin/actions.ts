@@ -155,6 +155,63 @@ export async function setSharedJudgePassword(
   return { ok: true, updated, failed };
 }
 
+// ── one-off test account with a known password ──────────────────
+export async function createTestJudge(
+  _: unknown,
+  form: FormData,
+): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
+  if (!(await isAdminSignedIn())) throw new Error("Not authorized");
+  const name = String(form.get("name") ?? "").trim() || "Test Judge";
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const password = String(form.get("password") ?? "").trim();
+  const roleRaw = String(form.get("role") ?? "judge").trim().toLowerCase();
+  const role = roleRaw === "mentor" ? "mentor" : "judge";
+
+  if (!email) return { ok: false, error: "Email required" };
+  if (password.length < 6)
+    return { ok: false, error: "Password must be at least 6 characters" };
+
+  const admin = createAdminClient();
+
+  // Create or upsert the auth user with this password
+  const { data: created, error: createErr } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    password,
+  });
+  let authUserId = created?.user?.id;
+  if (createErr && !authUserId) {
+    const { data: found } = await admin.auth.admin.listUsers();
+    authUserId = found?.users.find((u) => u.email?.toLowerCase() === email)?.id;
+    if (!authUserId)
+      return { ok: false, error: `Couldn't create account: ${createErr.message}` };
+    // Existing auth user — set the password explicitly
+    const { error: updErr } = await admin.auth.admin.updateUserById(authUserId, {
+      password,
+    });
+    if (updErr) return { ok: false, error: updErr.message };
+  }
+
+  // Upsert into judges table (try with role; fall back if column missing)
+  const { error } = await admin.from("judges").upsert(
+    { auth_user_id: authUserId!, name, email, role, is_active: true },
+    { onConflict: "email" },
+  );
+  if (error) {
+    if (/column .*role.* does not exist/i.test(error.message) && role === "judge") {
+      const retry = await admin.from("judges").upsert(
+        { auth_user_id: authUserId!, name, email, is_active: true },
+        { onConflict: "email" },
+      );
+      if (retry.error) return { ok: false, error: retry.error.message };
+    } else {
+      return { ok: false, error: error.message };
+    }
+  }
+  revalidatePath("/admin");
+  return { ok: true, email };
+}
+
 // ── CSV import ───────────────────────────────────────────────────
 const TRACKS = new Set([
   "AI for Coding",

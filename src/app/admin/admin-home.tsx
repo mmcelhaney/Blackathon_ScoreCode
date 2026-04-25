@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   addJudge,
   computeAndLockTop6,
+  createTestJudge,
   importCsv,
   removeJudge,
   setPhase,
@@ -327,6 +328,13 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
   >(null);
   const [pwdPending, pwdStart] = useTransition();
 
+  const [testState, setTestState] = useState<
+    | { ok: true; email: string }
+    | { ok: false; error: string }
+    | null
+  >(null);
+  const [testPending, testStart] = useTransition();
+
   function onAdd(role: "judge" | "mentor", formId: string) {
     return (fd: FormData) => {
       fd.set("role", role);
@@ -344,6 +352,16 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
       setPwdState(r);
       if (r.ok) {
         (document.getElementById("pwd-form") as HTMLFormElement)?.reset();
+      }
+    });
+  }
+
+  function onCreateTest(fd: FormData) {
+    testStart(async () => {
+      const r = await createTestJudge(null, fd);
+      setTestState(r);
+      if (r.ok) {
+        (document.getElementById("test-form") as HTMLFormElement)?.reset();
       }
     });
   }
@@ -399,6 +417,77 @@ function JudgesPanel({ judges }: { judges: Judge[] }) {
         {pwdState && !pwdState.ok && (
           <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
             {pwdState.error}
+          </div>
+        )}
+      </form>
+
+      {/* Test Account — quick one-off login for verifying the judge flow */}
+      <form
+        id="test-form"
+        action={onCreateTest}
+        className="card space-y-3 border-l-4 border-l-jade/60"
+      >
+        <div className="flex items-baseline justify-between">
+          <span className="rounded-full border border-jade/40 bg-jade/10 px-3 py-1 text-[0.7rem] uppercase tracking-wider text-jade">
+            Test Account
+          </span>
+          <span className="text-[0.65rem] uppercase tracking-wider text-dust">
+            For verifying the sign-in flow
+          </span>
+        </div>
+        <p className="text-xs text-dust">
+          Creates a one-off judge or mentor with a known email + password —
+          independent of the shared-password card. Use it to test the{" "}
+          <span className="text-gold">/judge</span> sign-in flow yourself.
+          Deactivate it from the roster after you're done.
+        </p>
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+          <div>
+            <label className="field-label">Email</label>
+            <input
+              name="email"
+              type="email"
+              required
+              className="field-input mt-1"
+              placeholder="test@blackathon.local"
+            />
+          </div>
+          <div>
+            <label className="field-label">Password</label>
+            <input
+              name="password"
+              type="text"
+              required
+              minLength={6}
+              autoComplete="off"
+              className="field-input mt-1"
+              placeholder="≥ 6 chars"
+            />
+          </div>
+          <div>
+            <label className="field-label">Role</label>
+            <select name="role" defaultValue="judge" className="field-input mt-1">
+              <option value="judge">Judge</option>
+              <option value="mentor">Mentor</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button className="btn" disabled={testPending}>
+              {testPending ? "Creating…" : "+ Create"}
+            </button>
+          </div>
+        </div>
+        <input name="name" type="hidden" value="Test Account" />
+        {testState && testState.ok && (
+          <div className="rounded-md border border-jade/60 bg-jade/10 px-3 py-2 text-xs text-jade">
+            ✓ Created <span className="font-mono">{testState.email}</span>. Sign
+            in at <span className="text-gold">/judge</span> with that email +
+            the password you just typed.
+          </div>
+        )}
+        {testState && !testState.ok && (
+          <div className="rounded-md border border-blood/60 bg-blood/10 px-3 py-2 text-xs text-blood">
+            {testState.error}
           </div>
         )}
       </form>
