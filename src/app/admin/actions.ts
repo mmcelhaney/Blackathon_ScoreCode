@@ -156,6 +156,27 @@ export async function setSharedJudgePassword(
 }
 
 // ── one-off test account with a known password ──────────────────
+
+// Paginated lookup — auth.admin.listUsers only returns 50/page, so a single
+// call misses users on later pages.
+async function findAuthUserIdByEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+): Promise<string | null> {
+  const target = email.toLowerCase();
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error || !data) return null;
+    const hit = data.users.find((u) => u.email?.toLowerCase() === target);
+    if (hit) return hit.id;
+    if (data.users.length < 200) return null; // last page
+  }
+  return null;
+}
+
 export async function createTestJudge(
   _: unknown,
   form: FormData,
@@ -173,34 +194,50 @@ export async function createTestJudge(
 
   const admin = createAdminClient();
 
-  // Create or upsert the auth user with this password
-  const { data: created, error: createErr } = await admin.auth.admin.createUser({
-    email,
-    email_confirm: true,
+  // Two-step: ensure auth user exists, then explicitly set password +
+  // email_confirm via updateUserById. More reliable than passing the password
+  // to createUser (which can silently no-op in some edge cases).
+  let authUserId = await findAuthUserIdByEmail(admin, email);
+  if (!authUserId) {
+    const { data: created, error: createErr } =
+      await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      });
+    if (createErr || !created?.user?.id) {
+      // Race: maybe it was created concurrently — retry lookup
+      const retryId = await findAuthUserIdByEmail(admin, email);
+      if (!retryId) {
+        console.error("createTestJudge: createUser failed", createErr);
+        return {
+          ok: false,
+          error: `Couldn't create auth user: ${createErr?.message ?? "unknown"}`,
+        };
+      }
+      authUserId = retryId;
+    } else {
+      authUserId = created.user.id;
+    }
+  }
+
+  const { error: pwdErr } = await admin.auth.admin.updateUserById(authUserId, {
     password,
+    email_confirm: true,
   });
-  let authUserId = created?.user?.id;
-  if (createErr && !authUserId) {
-    const { data: found } = await admin.auth.admin.listUsers();
-    authUserId = found?.users.find((u) => u.email?.toLowerCase() === email)?.id;
-    if (!authUserId)
-      return { ok: false, error: `Couldn't create account: ${createErr.message}` };
-    // Existing auth user — set the password explicitly
-    const { error: updErr } = await admin.auth.admin.updateUserById(authUserId, {
-      password,
-    });
-    if (updErr) return { ok: false, error: updErr.message };
+  if (pwdErr) {
+    console.error("createTestJudge: updateUserById failed", pwdErr);
+    return { ok: false, error: `Couldn't set password: ${pwdErr.message}` };
   }
 
   // Upsert into judges table (try with role; fall back if column missing)
   const { error } = await admin.from("judges").upsert(
-    { auth_user_id: authUserId!, name, email, role, is_active: true },
+    { auth_user_id: authUserId, name, email, role, is_active: true },
     { onConflict: "email" },
   );
   if (error) {
     if (/column .*role.* does not exist/i.test(error.message) && role === "judge") {
       const retry = await admin.from("judges").upsert(
-        { auth_user_id: authUserId!, name, email, is_active: true },
+        { auth_user_id: authUserId, name, email, is_active: true },
         { onConflict: "email" },
       );
       if (retry.error) return { ok: false, error: retry.error.message };
